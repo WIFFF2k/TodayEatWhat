@@ -1,0 +1,9 @@
+/* 基础转盘与结果布局 */
+.wheel-box{display:grid;justify-items:center;gap:14px;padding:18px 0;max-width:100%}
+.pointer{font-size:25px;color:#d54e32;line-height:1}
+#wheel{width:min(430px,100%);height:auto;aspect-ratio:1;border-radius:50%;box-shadow:0 6px 20px #263d5b25}
+#wheelNames{overflow-wrap:anywhere}
+.result{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;padding:18px;background:#edf3fb;border-radius:12px;margin-bottom:16px}
+.result strong{display:block;font-size:23px;overflow-wrap:anywhere}
+@media(max-width:760px){.result strong{font-size:20px}}
+@media(max-width:760px){#category{max-width:100%}}

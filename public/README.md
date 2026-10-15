@@ -1,11 +1,33 @@
-# 网页
+# 前端
 
-转盘提供基础和霓虹宇宙两套皮肤，默认基础，选择保存在当前浏览器；wheel-visuals.js 负责共用盘面绘制和有限时长粒子，wheel-skins.css 负责独立外观，wheel.js 保留抽签、落点与投票业务
-皮肤切换保留当前结果，抽签期间禁用切换；减少动态效果模式停止装饰旋转和粒子，并缩短转盘动画
+原生 ES Modules、HTML、CSS 和 Canvas，由 Express 静态服务提供，无构建步骤
+index.html 加载 styles/index.css 和 app.js，应用层处理会话、页面和同步
 
-转盘初次打开和刷新后默认选择出去吃；选项页先展示出去吃，再展示外卖，桌面分列、手机上下排列；添加表单的按钮与输入控件底边对齐
+## 应用层
 
-`app.js` 管理页面切换和定时同步，`shared.js` 管理请求、身份、时间及文字转义，`wheel.js`、`options.js`、`polls.js`、`settings.js` 分别维护各页面交互
+- [application](application/README.md)：会话、路由、同步及过期响应保护
+- [shared](shared/README.md)：唯一状态、请求、文字和时间、交互工具
+- [styles](styles/README.md)：基础与功能样式装配
 
-转盘结果由服务端生成，浏览器只根据结果绘制与播放动画；未提交的表单在同步期间保留；所有用户输入经转义后显示
-选项页支持重命名、删除确认和分页操作记录，弹窗草稿不受后台同步影响；其他人先改名时返回冲突提示，取消不产生记录
+页面通过 navigate 事件切换，generation 防止旧响应覆盖新页，busy 在提交或旋转期间锁定导航
+后台同步保留未提交名称与选票；功能模块不要自行另起轮询计时器
+
+## 功能分工
+
+| 模块 | 维护入口 |
+| --- | --- |
+| [wheel](features/wheel/README.md) | 页面、Canvas 绘制、基础和霓虹样式 |
+| [options](features/options/README.md) | 添加和勾选、编辑确认、操作记录 |
+| [polls](features/polls/README.md) | 投票列表、详情、改票和票数同步 |
+| [settings](features/settings/README.md) | 全局默认配置表单 |
+| [records](features/records/README.md) | 历史分页、跳转关联投票 |
+
+新增页面在 application/router.js 注册，在 application/session.js 添加导航
+文本进入 HTML 前使用 shared/display.js 的 escape，姓名编码由 shared/api.js 统一处理
+
+## 外观约定
+
+转盘刷新默认出去吃；皮肤默认基础，localStorage 保存 eat-user、eat-wheel-skin
+皮肤与当前分类各浏览器独立，餐厅和投票经服务器共享
+选项卡片桌面出去吃在左、外卖在右，手机按此顺序上下排列；添加控件等高对齐
+修改后刷新浏览器，缓存未更新用 Ctrl+F5；功能 CSS 放入自己的 styles 目录

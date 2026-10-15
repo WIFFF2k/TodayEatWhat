@@ -1,0 +1,35 @@
+/* 跨页面复用的控件和列表 */
+.btn.danger{background:#fff0ef;color:#a53129}
+button{cursor:pointer}
+[hidden]{display:none!important}
+h1{font-size:27px;margin:0}
+h2{font-size:20px;margin:0 0 14px}
+p{margin:12px 0}
+.card{background:#fff;border-radius:15px;padding:var(--space);box-shadow:0 5px 18px #263d5b12;margin-bottom:18px;min-width:0}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.field{display:grid;gap:6px;min-width:0}
+.btn{border:0;border-radius:8px;padding:10px 16px;background:#2d78d7;color:#fff;line-height:1.5;overflow-wrap:anywhere}
+.btn.secondary{background:#edf3fb;color:#2d5b91}
+select,input:not([type=checkbox]):not([type=radio]){width:100%;min-width:0;padding:10px;border:1px solid #d6e0ec;border-radius:8px;background:#fff}
+select{width:auto}
+input[type=checkbox],input[type=radio]{width:19px;height:19px;accent-color:#2d78d7;margin:0;flex-shrink:0}
+.muted,small{color:#64758d;font-size:13px}
+small{display:block}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.list{display:grid;gap:10px}
+details{margin-top:16px}
+summary{cursor:pointer;color:#2d5b91}
+.option,.vote-choice{display:grid;grid-template-columns:19px minmax(0,1fr) auto;gap:10px;align-items:start;padding:13px;background:#f7f9fc;border-radius:9px;margin:8px 0;overflow-wrap:anywhere}
+.option input,.vote-choice input{align-self:start;margin-top:3px}
+.record{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px;background:#f7f9fc;border-radius:9px;overflow-wrap:anywhere}
+.record>div{min-width:0}
+.record .btn{flex-shrink:0}
+.notice{display:block;width:100%;text-align:left;border:0;border-left:4px solid #ef9b41;background:#fff7e9;color:#69491d;padding:12px 15px;border-radius:8px;margin-bottom:16px;overflow-wrap:anywhere}
+.notice span{display:block;font-size:13px}
+.pager{margin-top:20px}
+#connection:not(:empty){padding:12px;background:#fff0ef;color:#9b3023;border-radius:8px;margin-bottom:14px}
+.toast{position:fixed;right:20px;bottom:20px;max-width:calc(100vw - 40px);z-index:20;background:#18243b;color:white;padding:12px 16px;border-radius:8px;overflow-wrap:anywhere}
+@media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr);gap:0}}
+@media(max-width:760px){.record{align-items:flex-start;flex-wrap:wrap}}
+@media(max-width:760px){.option{grid-template-columns:19px minmax(0,1fr)}}
+@media(max-width:760px){.row .field{width:100%}}

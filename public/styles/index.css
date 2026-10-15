@@ -1,0 +1,9 @@
+/* 按基础、布局、组件与功能顺序装配样式 */
+@import url("./base.css");
+@import url("./layout.css");
+@import url("./components.css");
+@import url("../features/options/styles/options.css");
+@import url("../features/wheel/styles/wheel.css");
+@import url("../features/polls/styles/polls.css");
+@import url("../features/settings/styles/settings.css");
+@import url("../features/wheel/styles/skins.css");

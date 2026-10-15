@@ -1,0 +1,9 @@
+/* 全局字体、尺寸和交互基础 */
+:root{font-family:"Microsoft YaHei",system-ui,sans-serif;color:#20314d;background:#f3f6fb;font-size:15px;line-height:1.6;--sidebar:218px;--space:22px}
+*{box-sizing:border-box}
+body{margin:0}
+button,input,select{font:inherit}
+button:disabled{cursor:not-allowed;opacity:.55}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #f4b559;outline-offset:3px}
+nav button.active,nav button:hover{background:#2d78d7;color:#fff}
+@media(max-width:760px){:root{--sidebar:86px;--space:15px}}

@@ -1,33 +1,99 @@
 # 今天吃啥（201版）
 
+201 同学共同维护的吃饭决策网站，包含姓名登录、分类转盘、共享餐厅、投票、操作留痕和历史记录
+
 ## 启动
 
-1. 安装 Node.js 24 或更高版本（使用内置 `node:sqlite`，无需额外数据库服务）
-2. 在项目目录执行 `npm install`
-3. 执行 `npm start`
-4. 终端会显示局域网访问地址，同一 WiFi 的设备打开该地址即可
+需要 Node.js 24 及以上和 npm；运行浏览器回归需要 Microsoft Edge
 
-Windows 用户直接双击项目根目录的 `start.bat` 即可，脚本检查 Node.js 版本并安装缺少的依赖，服务成功启动后自动打开浏览器。请保持启动窗口打开，按 Ctrl+C 停止服务。启动失败时窗口保留具体错误信息。
+    npm ci
+    npm start
 
-数据库文件位于 `data/eat-what.db`，由服务首次启动自动创建并写入初始白名单与选项。服务运行的电脑需要保持开机，Windows 防火墙需要允许 Node.js 通过专用网络。默认端口为 `20180`，本机地址为 `http://localhost:20180`。在 PowerShell 中可用 `$env:PORT='端口号'` 修改端口后再启动。
+Windows 可双击根目录 start.bat，脚本检查环境、安装缺失依赖并打开浏览器
+本机访问 http://localhost:20180；其他设备打开启动窗口中实际联网网卡的 http://电脑IP:20180
+电脑需保持开机、服务窗口保持运行，按 Ctrl+C 停止
 
-本机 Windows 保留端口范围包含 `3000` 和 `3210`，使用这些端口会出现 `EACCES`。重复双击启动时，程序会核对服务标识及项目目录，若本站已运行则直接打开浏览器并退出重复的启动窗口；若端口被其他程序占用，则明确报告 `EADDRINUSE`，不会结束其他进程。
+localhost 指向当前设备，VirtualBox、VMware 等虚拟网卡地址不能作为手机访问地址
+同一 WiFi 仍需允许设备互访；连接失败时检查地址、服务监听、Windows 对 Node.js 的入站权限和校园网隔离
+重复启动确认同一项目后复用旧进程；修改后端代码需先停止旧服务再启动
 
-## 使用规则
+## 同学们从哪里开始
 
-- 上海时间 17:00 前显示中午，之后显示晚上，打开的页面会自动更新标题
-- 选项的勾选、添加与投票通知约每 3 秒在已打开的页面同步
-- 抽签由服务端生成并保存，转盘指针与保存结果保持一致
-- 从自己的抽签结果发起投票，候选包括抽中的餐厅与该分类当前启用的选项；至少需要两个不同选项
-- 同一次抽签只建立一个投票，单选、多选与时长在创建时固定，之后改设置不影响已发起投票
-- 截止前可以改票，截止后只显示结果；抽签历史及投票列表均可翻页
-- 无密码登录用于熟人选择姓名，不提供身份防冒用能力
+| 内容 | 代码入口 | 说明 |
+| --- | --- | --- |
+| 页面、交互、皮肤 | public/features/ | [前端](public/README.md) |
+| 接口和业务规则 | server/modules/ | [服务端](server/README.md) |
+| 数据表、白名单、迁移 | server/database/ | [数据库](server/database/README.md) |
+| 端口和局域网启动 | server/runtime/、start.bat | [启动](server/runtime/README.md) |
+| 自动化检查 | tests/e2e/ | [测试](tests/README.md) |
+| 分工、提交、联调 | 全仓库 | [协作约定](CONTRIBUTING.md) |
+| 请求、返回、错误 | /api | [接口约定](server/API.md) |
 
-## 开发检查
+## 目录结构
 
-运行 npm test，使用本机 Microsoft Edge 执行真实浏览器回归检查，详细场景见 tests/README.md
+    server.js                  设置时区并启动服务
+    start.bat                  Windows 一键启动
+    server/
+      app.js、routes.js        应用与接口装配
+      config/                  项目路径配置
+      runtime/                 监听、地址提示、重复启动处理
+      middleware/              姓名校验、统一错误
+      database/                唯一连接、建表、种子、迁移、事务
+      shared/                  时间、分页、业务错误
+      modules/
+        identity/ options/ wheel/ polls/ settings/ records/
+          routes.js            HTTP 入口
+          services/            校验、业务编排、事务（按需）
+          repositories/        SQL 和查询
+    public/
+      index.html、app.js        页面和脚本入口
+      application/             登录、路由、同步、请求代次
+      shared/                  请求、状态、显示、交互
+      styles/                  基础样式与装配入口
+      features/
+        wheel/ options/ polls/ settings/ records/
+          views/               页面控制
+          components/          功能内组件（按需）
+          renderers/           转盘绘制（按需）
+          styles/              功能样式（按需）
+    tests/
+      e2e/                     按业务分组的浏览器场景
+      fixtures/                每个用例的数据隔离
+      helpers/                 登录、抽签、导航共用操作
+      run.cjs                  临时目录和测试进程生命周期
 
-测试通过 DATA_DIR 使用临时数据库、20281 和 20282 端口，不写入正式数据
+## 独立开发实例
 
-备份数据前先停止服务，再复制整个 data 目录，避免遗漏 SQLite 的日志文件
-选项支持全局重命名、删除及操作留痕，删除不清除已有转盘和投票历史。其他设备访问时使用实际联网网卡的 IP 地址，localhost 只代表浏览器所在设备；启动窗口单独标注虚拟网卡，同一 WiFi 的设备隔离仍可能阻止互访
+PowerShell 示例：
+
+    $env:PORT='20181'
+    $env:DATA_DIR='./data/dev'
+    $env:OPEN_BROWSER='0'
+    npm start
+
+所有人访问同一个服务才共享数据；各自运行的数据库不会自动合并
+网页修改后刷新生效，后端修改后重启生效；使用原生浏览器模块，无构建步骤
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| PORT | 20180 | HTTP 监听端口 |
+| DATA_DIR | 项目根目录 data | 数据目录；自定义相对路径相对于启动工作目录 |
+| OPEN_BROWSER | 未设置 | Windows 设为 1 后自动打开浏览器 |
+
+## 业务约定
+
+- 标题按上海时间计算，17:00 前为中午，之后为晚上
+- 转盘刷新后默认出去吃，皮肤默认基础，皮肤偏好保存在当前浏览器
+- 选项增删改和勾选全局共享；新增、重命名、删除留痕，已有抽签与投票名称保持快照
+- 抽签由服务端生成；每次抽签只能由本人发起一个投票，默认单选、60 分钟
+- 修改设置只影响新投票，截止前允许改票
+- 前台非忙碌时每 3 秒更新通知、当前选项和投票详情；设置、历史和投票列表重新进入后读取
+- 无密码姓名选择用于熟人协作，无法防止他人选择同一姓名
+
+## 验证与数据维护
+
+    npm test
+
+测试使用独立临时数据和 20281、20282 端口，不写入正式数据库，详见 [测试说明](tests/README.md)
+正式数据默认在 data/eat-what.db；升级前停止服务并备份整个 data 目录，启动时自动执行迁移
+data、node_modules、测试报告和截图已被 Git 忽略
