@@ -7,7 +7,7 @@ export function edit(view, item, action, onSaved) {
   const dialog = view.querySelector('#optionDialog'); const form = view.querySelector('#optionEditForm');
   const rename = action === 'rename'; const input = view.querySelector('#renameName');
   view.querySelector('#optionDialogTitle').textContent = rename ? '重命名选项' : '删除选项';
-  view.querySelector('#optionEditDescription').textContent = rename ? '正在修改「' + item.name + '」，已有历史记录保留原名称' : '确认删除「' + item.name + '」？所有人的转盘都将移除此项，操作记录和已有投票仍保留';
+  view.querySelector('#optionEditDescription').textContent = rename ? '正在修改「' + item.name + '」' : '确认删除「' + item.name + '」？所有人的转盘都将移除此项，操作记录和已有投票仍保留';
   view.querySelector('#renameField').hidden = !rename; input.disabled = !rename; input.value = item.name;
   view.querySelector('#optionConfirm').textContent = rename ? '保存名称' : '确认删除';
   view.querySelector('#optionConfirm').className = rename ? 'btn' : 'btn danger';

@@ -3,7 +3,7 @@ const db = require('../../../database');
 const { timestamp } = require('../../../shared/time');
 function options() {
   // 列出共享选项与添加记录
-  return db.prepare('SELECT id, name, category, enabled, added_by AS addedBy, created_at AS createdAt FROM options WHERE deleted_at IS NULL ORDER BY id').all()
+  return db.prepare('SELECT id, name, category, enabled, added_by AS addedBy, created_at AS createdAt FROM options WHERE deleted_at IS NULL ORDER BY sort_order, id').all()
     .map(item => ({ ...item, enabled: Boolean(item.enabled), createdAt: timestamp(item.createdAt) }));
 }
 
@@ -27,9 +27,15 @@ function readLogs(before, size) {
   return db.prepare('SELECT id,option_id AS optionId,action,actor,category,old_category AS oldCategory,new_category AS newCategory,old_name AS oldName,new_name AS newName,created_at AS createdAt FROM option_logs WHERE id<? ORDER BY id DESC LIMIT ?').all(before, size + 1);
 }
 
-function insertOption(name, category, actor) {
-  // 写入新增选项与添加人
-  return db.prepare('INSERT INTO options(name,category,added_by) VALUES(?,?,?)').run(name, category, actor);
+function nextSortOrder(category) {
+  // 返回目标分类下一位排序号，保证新增和移动项排在最后
+  const row = db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM options WHERE category=? AND deleted_at IS NULL').get(category);
+  return Number(row.next);
+}
+
+function insertOption(name, category, actor, sortOrder) {
+  // 写入新增选项、添加人和分类内排序号
+  return db.prepare('INSERT INTO options(name,category,sort_order,added_by) VALUES(?,?,?,?)').run(name, category, sortOrder, actor);
 }
 
 function setEnabled(enabled, id) {
@@ -42,9 +48,9 @@ function renameOption(name, id) {
   return db.prepare('UPDATE options SET name=? WHERE id=?').run(name, id);
 }
 
-function moveOption(category, id) {
-  // 更新选项所属分类
-  return db.prepare('UPDATE options SET category=? WHERE id=?').run(category, id);
+function moveOption(category, id, sortOrder) {
+  // 更新选项所属分类并排到目标分类最后
+  return db.prepare('UPDATE options SET category=?, sort_order=? WHERE id=?').run(category, sortOrder, id);
 }
 
 function softDelete(id) {
@@ -54,7 +60,7 @@ function softDelete(id) {
 
 function enabledOptions(category) {
   // 抽签与新投票共用未删除且启用的候选定义
-  return db.prepare('SELECT id,name,category FROM options WHERE category=? AND enabled=1 AND deleted_at IS NULL ORDER BY id').all(category);
+  return db.prepare('SELECT id,name,category FROM options WHERE category=? AND enabled=1 AND deleted_at IS NULL ORDER BY sort_order, id').all(category);
 }
 
-module.exports = { options, getOption, findDuplicate, insertLog, readLogs, insertOption, setEnabled, renameOption, moveOption, softDelete, enabledOptions };
+module.exports = { options, getOption, findDuplicate, insertLog, readLogs, nextSortOrder, insertOption, setEnabled, renameOption, moveOption, softDelete, enabledOptions };

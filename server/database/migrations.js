@@ -25,9 +25,13 @@ module.exports = function migrate(db) {
   }
 
   // 迁移共享选项和操作留痕，旧选项的添加人及添加时间保持不变
-  const optionColumns = db.prepare('PRAGMA table_info(options)').all();
+  let optionColumns = db.prepare('PRAGMA table_info(options)').all();
   if (!optionColumns.some(column => column.name === 'deleted_at')) {
     db.exec('ALTER TABLE options ADD COLUMN deleted_at TEXT');
+    optionColumns = db.prepare('PRAGMA table_info(options)').all();
+  }
+  if (!optionColumns.some(column => column.name === 'sort_order')) {
+    db.exec('ALTER TABLE options ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
   }
   const optionSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='options'").get()?.sql || '';
   if (!optionSql.includes("'good_meal'") || !optionSql.includes("'casual_out'") || !optionSql.includes("'takeout'") || !optionSql.includes("'pending'")) {
@@ -37,13 +41,14 @@ module.exports = function migrate(db) {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         category TEXT NOT NULL CHECK (category IN ('good_meal', 'casual_out', 'takeout', 'pending')),
+        sort_order INTEGER NOT NULL DEFAULT 0,
         enabled INTEGER NOT NULL DEFAULT 1,
         added_by TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
         deleted_at TEXT
       );
-      INSERT INTO options_next(id,name,category,enabled,added_by,created_at,deleted_at)
-        SELECT id,name,${categoryCase('category')},enabled,added_by,created_at,deleted_at
+      INSERT INTO options_next(id,name,category,sort_order,enabled,added_by,created_at,deleted_at)
+        SELECT id,name,${categoryCase('category')},sort_order,enabled,added_by,created_at,deleted_at
         FROM options;
       DROP TABLE options;
       ALTER TABLE options_next RENAME TO options;
@@ -51,6 +56,7 @@ module.exports = function migrate(db) {
   }
   db.exec(`
     UPDATE options SET category = ${categoryCase('category')} WHERE category IN (${legacyValues()});
+    UPDATE options SET sort_order = id WHERE sort_order IS NULL OR sort_order = 0;
     UPDATE spin_records SET category = ${categoryCase('category')} WHERE category IN (${legacyValues()});
   `);
 

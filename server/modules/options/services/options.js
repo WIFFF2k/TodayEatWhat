@@ -3,7 +3,7 @@ const { fail } = require('../../../shared/errors');
 const { timestamp } = require('../../../shared/time');
 const { categories, isCategoryKey } = require('../../../shared/categories');
 const transaction = require('../../../database/transaction');
-const { options, getOption, findDuplicate, insertLog, readLogs, insertOption, setEnabled, renameOption, moveOption, softDelete } = require('../repositories/options');
+const { options, getOption, findDuplicate, insertLog, readLogs, nextSortOrder, insertOption, setEnabled, renameOption, moveOption, softDelete } = require('../repositories/options');
 function validName(value) {
   // 所有写入入口使用一致的名称规则
   if (typeof value !== 'string' || !value.trim() || value.trim().length > 60) fail(400, 'OPTION_NAME_INVALID', '名称需为 1 到 60 个字');
@@ -44,7 +44,8 @@ function createOption(body, actor) {
   const id = transaction(() => {
     // 查重、选项和日志写入共享同一事务
     uniqueName(name, category);
-    const id = Number(insertOption(name, category, actor).lastInsertRowid);
+    const sortOrder = nextSortOrder(category);
+    const id = Number(insertOption(name, category, actor, sortOrder).lastInsertRowid);
     insertLog({ id, category }, 'add', actor, null, name, null, category);
     return id;
   });
@@ -68,7 +69,7 @@ function updateOption(idValue, body, actor) {
       insertLog(item, 'rename', actor, item.name, name, item.category, item.category);
     } else if (hasCategory && category !== item.category) {
       uniqueName(item.name, category, item.id);
-      moveOption(category, item.id);
+      moveOption(category, item.id, nextSortOrder(category));
       insertLog(item, 'move', actor, item.name, item.name, item.category, category);
     }
   });
