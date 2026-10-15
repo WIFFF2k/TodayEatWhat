@@ -23,7 +23,7 @@
 | 403 | SPIN_NOT_OWNER | 不能用别人的抽签发起投票 |
 | 404 | API_NOT_FOUND、OPTION_NOT_FOUND、SPIN_NOT_FOUND、POLL_NOT_FOUND | 接口或数据不存在 |
 | 409 | OPTION_DUPLICATE、OPTION_CHANGED | 同分类重名或选项被他人改名 |
-| 409 | WHEEL_EMPTY、POLL_CHOICES_INSUFFICIENT、POLL_CLOSED | 没有可抽选项、投票候选不足或投票截止 |
+| 409 | WHEEL_EMPTY、POLL_CLOSED | 没有可抽选项或投票截止 |
 | 413 | BODY_TOO_LARGE | 请求体过大 |
 | 500 | SERVER_ERROR | 内部故障，详细原因记录在服务窗口 |
 
@@ -80,11 +80,12 @@ action 为 add、rename、delete；新增时 oldName 为 null，删除时 newNam
 | GET /sync | 无 | { activePolls, serverTime, title } |
 
 只能从自己的抽签发起投票；同一 spinId 重复请求返回同一个投票 id
-候选为抽签结果名称与该分类当前启用名称的去重合集，至少需要两个不同名称
-创建时保存候选、模式和时长快照，餐厅随后改名、取消勾选或删除不会修改旧投票
+候选项固定为「去」「不去」「我不服我要重转」，与抽签结果和餐厅名称无关
+创建时保存候选、模式和时长快照，之后修改设置不影响已有投票
 
-详情字段：id、title、creator、mode、minutes、createdAt、spinId、deadline、closed、choices、votedChoiceIds、participants、proposedName
-choices 每项为 { id, name, votes }；votedChoiceIds 是当前身份已选编号；participants 按投票人数去重
+详情字段：id、title、creator、mode、minutes、createdAt、spinId、deadline、closed、choices、votedChoiceIds、participants、proposedName、pendingNames、redoOpenPolls
+choices 每项为 { id, code, name, votes, voters }；code 为 go、skip、redo，voters 是按投票先后排列的姓名；votedChoiceIds 是当前身份已选编号；participants 按投票人数去重
+pendingNames 是白名单中还没有选择的人；redoOpenPolls 是选择「我不服我要重转」的人本人正在进行的其他投票 { id, creator, proposedName }，没有时为 []
 proposedName 是原抽签结果，旧的未关联抽签投票为 null
 
 choiceIds 必须是非空、不重复的正安全整数数组，且全部属于本次投票

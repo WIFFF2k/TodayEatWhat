@@ -1,3 +1,14 @@
 /* 投票操作与结果展示 */
 #voteSubmit{margin-top:18px}
 #pollOutcome{font-weight:700;overflow-wrap:anywhere;margin-top:14px}
+
+/* 每个选项和未选择的人各占一个选项卡 */
+.poll-breakdown-title{font-size:15px;margin:26px 0 0}
+.poll-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.poll-tab{display:flex;align-items:center;gap:6px;max-width:100%;border:0;border-radius:8px;padding:9px 13px;background:#edf3fb;color:#2d5b91;line-height:1.5;text-align:left;overflow-wrap:anywhere}
+.poll-tab.active{background:#2d78d7;color:#fff}
+.poll-tab.active .muted{color:#dbe8f9}
+.poll-panel{padding:13px;background:#f7f9fc;border-radius:9px}
+.poll-people{display:flex;flex-wrap:wrap;gap:8px}
+.poll-people p{margin:0}
+.poll-person{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;padding:8px 12px;border-radius:8px;background:#fff;overflow-wrap:anywhere}

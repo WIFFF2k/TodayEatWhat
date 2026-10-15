@@ -8,6 +8,12 @@ module.exports = function migrate(db) {
   }
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_poll_spin ON polls(spin_id) WHERE spin_id IS NOT NULL');
 
+  // 为固定候选项补充语义编号，旧投票保留原有名称快照
+  const choiceColumns = db.prepare('PRAGMA table_info(poll_choices)').all();
+  if (!choiceColumns.some(column => column.name === 'code')) {
+    db.exec('ALTER TABLE poll_choices ADD COLUMN code TEXT');
+  }
+
   // 迁移共享选项和操作留痕，旧选项的添加人及添加时间保持不变
   const columns = db.prepare('PRAGMA table_info(options)').all();
   if (!columns.some(column => column.name === 'deleted_at')) {

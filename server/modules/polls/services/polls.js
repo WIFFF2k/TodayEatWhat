@@ -4,10 +4,10 @@ const { mealTitle } = require('../../../shared/time');
 const transaction = require('../../../database/transaction');
 const { poll, findForSpin, insertPoll, deleteBallot, insertChoices, insertBallot } = require('../repositories/polls');
 const { getSpin } = require('../../wheel/repositories/wheel');
-const { enabledOptions } = require('../../options/repositories/options');
 const { settings } = require('../../settings/repositories/settings');
+const { CHOICES } = require('../shared/choices');
 function createPoll(body, actor) {
-  // 从自己的转盘结果建立投票，保留结果与当时设置
+  // 从自己的转盘结果建立投票，候选固定为去、不去和重转
   const { spinId } = body;
   if (!Number.isSafeInteger(spinId) || spinId < 1) fail(400, 'SPIN_ID_INVALID', '请先转出一个结果');
   const result = transaction(() => {
@@ -17,12 +17,10 @@ function createPoll(body, actor) {
     if (spin.user_name !== actor) fail(403, 'SPIN_NOT_OWNER', '只能从自己的转盘结果发起投票');
     const existing = findForSpin(spinId);
     if (existing) return { id: existing.id };
-    const names = [...new Set([spin.option_name, ...enabledOptions(spin.category).map(row => row.name)])];
-    if (names.length < 2) fail(409, 'POLL_CHOICES_INSUFFICIENT', '该分类至少需要两个不同选项才能投票');
     const config = settings();
-    const result = insertPoll(mealTitle(), actor, config.pollMode, config.pollMinutes, spinId);
-    const id = Number(result.lastInsertRowid);
-    insertChoices(id, names);
+    const created = insertPoll(mealTitle(), actor, config.pollMode, config.pollMinutes, spinId);
+    const id = Number(created.lastInsertRowid);
+    insertChoices(id, CHOICES);
     return { id };
   });
   return result;
