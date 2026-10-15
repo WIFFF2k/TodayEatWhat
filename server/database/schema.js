@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS options (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('good_meal', 'casual_out', 'takeout')),
+  category TEXT NOT NULL CHECK (category IN ('good_meal', 'casual_out', 'takeout', 'pending')),
   enabled INTEGER NOT NULL DEFAULT 1,
   added_by TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),

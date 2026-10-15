@@ -6,7 +6,7 @@
 
 ## 公共数据与错误
 
-用餐分类在接口和数据库中统一使用稳定 key：good_meal、casual_out、takeout；显示名由 bootstrap.categories 的 label 提供，调整显示名只需改 server/shared/categories.js
+用餐分类在接口和数据库中统一使用稳定 key：good_meal、casual_out、takeout、pending；显示名由 bootstrap.categories 的 label 提供，调整显示名只需改 server/shared/categories.js
 接口时间 createdAt、deadline、serverTime 均为毫秒时间戳，标题按 Asia/Shanghai 的 17:00 划分中午和晚上
 分页 offset 为非负安全整数，默认 0；投票和历史每次最多返回 30 条，下一页 offset 加 30；选项日志通过 size 选择 10、30、50 条
 

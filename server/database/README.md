@@ -19,7 +19,7 @@ index.js 创建唯一 node:sqlite DatabaseSync 连接，使用 config/paths.js �
 users 是姓名白名单；options 是当前餐厅、用餐分类及软删除状态；option_logs 保存新增、改名、移动、删除快照
 spin_records 保存抽签用户、分类、当时名称；polls 保存创建时模式、时长和抽签关联
 poll_choices 保存投票候选项名称与语义编号快照；poll_ballots 保存用户选择；settings 保存全局默认配置
-迁移把旧显示分类统一映射为稳定 key：good_meal、casual_out、takeout，重建 options 分类约束和 option_logs 动作约束并补齐 old_category/new_category
+迁移把旧显示分类统一映射为稳定 key：good_meal、casual_out、takeout、pending，重建 options 分类约束和 option_logs 动作约束并补齐 old_category/new_category
 分类 key 保持稳定，显示名调整不需要数据库迁移
 迁移补齐既有选项的添加记录，保留原添加人及时间；唯一索引保证重复启动不重复补日志
 选项不做初始化，新库从空列表开始，餐厅全部由成员在选项页手动添加；软删除的选项不会在重启后重新出现

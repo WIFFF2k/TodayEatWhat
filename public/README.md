@@ -29,5 +29,5 @@ index.html 加载 styles/index.css 和 app.js，应用层处理会话、页面�
 
 转盘刷新默认 casual_out；皮肤默认基础，localStorage 保存 eat-user、eat-wheel-skin、eat-option-log-size
 皮肤与当前分类各浏览器独立，餐厅和投票经服务器共享
-分类使用稳定 key，显示名由 bootstrap.categories 提供；选项卡片按该顺序排列，手机按此顺序上下排列；添加控件等高对齐
+分类使用稳定 key，显示名由 bootstrap.categories 提供；前三类桌面三列同排，待定在下一行跨满三列总宽度，手机按顺序单列；添加控件等高对齐
 修改后刷新浏览器，缓存未更新用 Ctrl+F5；功能 CSS 放入自己的 styles 目录

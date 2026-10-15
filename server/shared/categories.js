@@ -2,7 +2,8 @@
 const categories = [
   { key: 'good_meal', label: '吃顿好的' },
   { key: 'casual_out', label: '出去随便吃点' },
-  { key: 'takeout', label: '点外卖吧' }
+  { key: 'takeout', label: '点外卖吧' },
+  { key: 'pending', label: '待定' }
 ];
 const categoryKeys = categories.map(item => item.key);
 const legacyCategoryMap = {
@@ -13,7 +14,8 @@ const legacyCategoryMap = {
   '出去吃': 'casual_out',
   '点外卖吧': 'takeout',
   '点外卖': 'takeout',
-  '外卖': 'takeout'
+  '外卖': 'takeout',
+  '待定': 'pending'
 };
 function isCategoryKey(value) {
   // 判断分类 key 是否属于当前全站支持的范围

@@ -30,13 +30,13 @@ module.exports = function migrate(db) {
     db.exec('ALTER TABLE options ADD COLUMN deleted_at TEXT');
   }
   const optionSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='options'").get()?.sql || '';
-  if (!optionSql.includes("'good_meal'") || !optionSql.includes("'casual_out'") || !optionSql.includes("'takeout'")) {
+  if (!optionSql.includes("'good_meal'") || !optionSql.includes("'casual_out'") || !optionSql.includes("'takeout'") || !optionSql.includes("'pending'")) {
     // SQLite 不能直接修改 CHECK，重建表并把旧分类映射到新分类
     db.exec(`
       CREATE TABLE options_next (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        category TEXT NOT NULL CHECK (category IN ('good_meal', 'casual_out', 'takeout')),
+        category TEXT NOT NULL CHECK (category IN ('good_meal', 'casual_out', 'takeout', 'pending')),
         enabled INTEGER NOT NULL DEFAULT 1,
         added_by TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
