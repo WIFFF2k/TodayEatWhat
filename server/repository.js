@@ -26,7 +26,7 @@ function settings() {
 }
 function options() {
   // 列出共享选项与添加记录
-  return db.prepare('SELECT id, name, category, enabled, added_by AS addedBy, created_at AS createdAt FROM options ORDER BY id').all()
+  return db.prepare('SELECT id, name, category, enabled, added_by AS addedBy, created_at AS createdAt FROM options WHERE deleted_at IS NULL ORDER BY id').all()
     .map(item => ({ ...item, enabled: Boolean(item.enabled), createdAt: timestamp(item.createdAt) }));
 }
 function poll(id, user) {

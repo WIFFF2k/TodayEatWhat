@@ -37,8 +37,13 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 const server = app.listen(port, '0.0.0.0', () => {
   // 服务成功监听后显示地址并按启动参数打开浏览器
   console.log(`本机访问：http://localhost:${port}`);
-  for (const interfaces of Object.values(os.networkInterfaces())) {
-    for (const item of interfaces || []) if (item.family === 'IPv4' && !item.internal) console.log(`局域网访问：http://${item.address}:${port}`);
+  console.log('其他设备不能使用 localhost 或 127.0.0.1，请使用实际联网网卡的地址');
+  for (const [adapter, interfaces] of Object.entries(os.networkInterfaces())) {
+    for (const item of interfaces || []) {
+      if (item.family !== 'IPv4' || item.internal) continue;
+      const virtual = /vmware|virtualbox|vethernet|loopback/i.test(adapter);
+      console.log((virtual ? '虚拟网卡（不要作为手机访问地址）' : '网络地址') + ' [' + adapter + ']：http://' + item.address + ':' + port);
+    }
   }
   console.log('服务已启动，请保持此窗口打开，按 Ctrl+C 停止服务');
   openBrowser();

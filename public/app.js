@@ -79,8 +79,9 @@ async function sync() {
       const options = await api('/options'); if (version !== generation || state.busy) return;
       if (JSON.stringify(options) !== JSON.stringify(state.options)) {
         state.options = options;
-        if (state.page === '转盘') updateWheel(); else updateOptions();
+        if (state.page === '转盘') updateWheel();
       }
+      if (state.page === '选项') await updateOptions(() => version === generation);
     } else if (state.page === '投票') { await updatePoll(() => version === generation); }
     const status = document.querySelector('#connection'); if (status) status.textContent = '';
   } catch (error) {

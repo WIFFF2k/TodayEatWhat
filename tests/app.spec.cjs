@@ -34,7 +34,7 @@ async function spin(page) {
 test.beforeEach(async ({ request }) => {
   // 清理临时业务数据并恢复当前项目的原始候选
   const db = database();
-  db.exec('DELETE FROM poll_ballots; DELETE FROM poll_choices; DELETE FROM polls; DELETE FROM spin_records; DELETE FROM options WHERE id>12; UPDATE options SET enabled=1;');
+  db.exec("DELETE FROM poll_ballots; DELETE FROM poll_choices; DELETE FROM polls; DELETE FROM spin_records; DELETE FROM option_logs WHERE option_id>12 OR action<>'add'; DELETE FROM options WHERE id>12; UPDATE options SET enabled=1,deleted_at=NULL,name=(SELECT new_name FROM option_logs WHERE option_id=options.id AND action='add');");
   db.prepare('UPDATE settings SET value=? WHERE key=?').run('single','pollMode'); db.prepare('UPDATE settings SET value=? WHERE key=?').run('60','pollMinutes'); db.close();
 });
 test('中文身份、刷新恢复、非法输入和接口错误均可明确处理', async ({ page, request }) => {
@@ -143,6 +143,10 @@ test('请求失败能恢复操作，抽签中禁止切页，失败的设置不�
 });
 test('重启后选项、记录与投票数据保留，无人投票截止有明确结果', async ({ request, page }) => {
   // 使用同一个临时数据库启动独立服务进程并实际重启
+  const deleted=await (await request.post('/api/options',{headers:headers(),data:{name:'重启删除检查',category:'外卖'}})).json();
+  await request.patch('/api/options/'+deleted.id,{headers:headers(),data:{name:'重启改名检查'}});
+  await request.delete('/api/options/'+deleted.id,{headers:headers()});
+  const logsBefore=await (await request.get('/api/option-logs',{headers:headers()})).json();
   const draw=await (await request.post('/api/spins',{headers:headers(),data:{category:'出去吃'}})).json();
   const created=await (await request.post('/api/polls',{headers:headers(),data:{spinId:draw.id}})).json();
   const db=database(); db.prepare("UPDATE polls SET created_at=datetime('now','+8 hours','-2 hours') WHERE id=?").run(created.id); db.close();
@@ -157,5 +161,78 @@ test('重启后选项、记录与投票数据保留，无人投票截止有明�
     await new Promise(resolve=>{child.once('exit',resolve); child.kill();}); child=await boot();
     const after=await (await request.get('http://127.0.0.1:20282/api/records',{headers:headers()})).json(); expect(after).toEqual(before);
     const poll=await (await request.get('http://127.0.0.1:20282/api/polls/'+created.id,{headers:headers()})).json(); expect(poll.proposedName).toBe(draw.winner.name); expect(poll.closed).toBe(true);
+    const optionsAfter=await (await request.get('http://127.0.0.1:20282/api/options',{headers:headers()})).json(); expect(optionsAfter.some(x=>x.id===deleted.id)).toBe(false);
+    const logsAfter=await (await request.get('http://127.0.0.1:20282/api/option-logs',{headers:headers()})).json(); expect(logsAfter).toEqual(logsBefore);
   } finally { await new Promise(resolve=>{child.once('exit',resolve); child.kill();}); }
+});
+
+test('重命名和删除跨设备同步并保留添加人、历史和投票快照', async ({page,browser,request}) => {
+  // 用真实新增、抽签和投票产生数据，再由两个用户编辑和删除
+  const ctx=await browser.newContext(); const other=await ctx.newPage();
+  const errors=[]; page.on('pageerror',e=>errors.push(e.message)); other.on('pageerror',e=>errors.push(e.message));
+  await login(page); await login(other,secondName); await pageTo(page,'选项');
+  await page.locator('#newName').fill('留痕餐厅'); await page.locator('#addForm button').click();
+  await expect(page.locator('#additionLog')).toContainText('留痕餐厅');
+  const all=await (await request.get('/api/options',{headers:headers()})).json(); const item=all.find(x=>x.name==='留痕餐厅');
+  for(const option of all.filter(x=>x.category==='外卖'&&x.id!==item.id)) await request.patch('/api/options/'+option.id,{headers:headers(),data:{enabled:false}});
+  const draw=await (await request.post('/api/spins',{headers:headers(),data:{category:'外卖'}})).json(); expect(draw.winner.id).toBe(item.id);
+  await request.patch('/api/options/1',{headers:headers(),data:{enabled:true}});
+  const created=await (await request.post('/api/polls',{headers:headers(),data:{spinId:draw.id}})).json();
+  await pageTo(other,'选项');
+  await page.locator('[data-rename="'+item.id+'"]').click(); await page.locator('#renameName').fill('取消的名称'); await page.locator('#optionCancel').click();
+  await expect(page.locator('[data-row="'+item.id+'"]').locator('label')).toContainText('留痕餐厅');
+  await page.locator('[data-rename="'+item.id+'"]').click(); await page.locator('#renameName').fill('大米先生'); await page.locator('#optionConfirm').click();
+  await expect(page.locator('#optionEditError')).toContainText('同名');
+  const renamed='<b>留痕新店</b>'; await page.locator('#renameName').fill(renamed);
+  await page.waitForTimeout(3300); await expect(page.locator('#renameName')).toHaveValue(renamed);
+  await page.locator('#optionConfirm').click(); await expect(page.locator('#optionDialog')).not.toBeVisible();
+  await expect(other.locator('[data-row="'+item.id+'"]').locator('label')).toContainText(renamed,{timeout:10000});
+  await expect(other.locator('#additionLog')).toContainText('留痕餐厅 → '+renamed); expect(await other.locator('#optionGroups b').count()).toBe(0);
+  await other.locator('[data-delete="'+item.id+'"]').click(); await other.locator('#optionCancel').click(); await expect(other.locator('[data-row="'+item.id+'"]').locator('input')).toBeChecked();
+  await other.locator('[data-delete="'+item.id+'"]').click(); await other.locator('#optionConfirm').click(); await expect(other.locator('[data-row="'+item.id+'"]')).toHaveCount(0);
+  await expect(page.locator('[data-row="'+item.id+'"]')).toHaveCount(0,{timeout:10000});
+  await expect(page.locator('#additionLog')).toContainText('杨淑慧 删除 · 外卖');
+  const logs=await (await request.get('/api/option-logs',{headers:headers()})).json(); const trail=logs.items.filter(x=>x.optionId===item.id);
+  expect(trail.map(x=>x.action)).toEqual(['delete','rename','add']); expect(trail.map(x=>x.actor)).toEqual([secondName,username,username]);
+  expect(trail[1]).toMatchObject({oldName:'留痕餐厅',newName:renamed}); expect(trail.every(x=>Number.isFinite(x.createdAt))).toBe(true);
+  const history=await (await request.get('/api/records',{headers:headers()})).json(); expect(history[0].optionName).toBe('留痕餐厅');
+  const poll=await (await request.get('/api/polls/'+created.id,{headers:headers()})).json(); expect(poll.choices.map(x=>x.name)).toContain('留痕餐厅'); expect(poll.proposedName).toBe('留痕餐厅');
+  const next=await (await request.post('/api/spins',{headers:headers(),data:{category:'外卖'}})).json(); expect(next.entries.map(x=>x.id)).not.toContain(item.id);
+  const newPoll=await (await request.post('/api/polls',{headers:headers(),data:{spinId:next.id}})).json(); expect(newPoll.errorCode).toBe('POLL_CHOICES_INSUFFICIENT');
+  expect((await request.patch('/api/options/'+item.id,{headers:headers(),data:{enabled:true}})).status()).toBe(404);
+  expect((await request.delete('/api/options/'+item.id,{headers:headers()})).status()).toBe(404);
+  await page.setViewportSize({width:320,height:844}); await page.locator('[data-rename="1"]').click();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const box=await page.locator('#optionDialog').boundingBox(); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x+box.width).toBeLessThanOrEqual(320);
+  await page.screenshot({path:'test-results/options-dialog-mobile.png',fullPage:true}); await page.locator('#optionCancel').click();
+  await page.setViewportSize({width:1280,height:900}); await page.screenshot({path:'test-results/options-desktop.png',fullPage:true});
+  expect(errors).toEqual([]); await ctx.close();
+});
+
+test('选项并发冲突、无效输入、写入失败和分页日志都有明确结果', async ({page,request}) => {
+  // 真实接口写入与数据库故障注入检验原子性，不在正式库构造数据
+  const item=await (await request.post('/api/options',{headers:headers(),data:{name:'并发餐厅',category:'外卖'}})).json(); const url='/api/options/'+item.id;
+  await login(page); await pageTo(page,'选项'); await page.locator('[data-rename="'+item.id+'"]').click(); await page.locator('#renameName').fill('本机草稿');
+  await request.patch(url,{headers:headers(secondName),data:{name:'别人改名'}});
+  await page.locator('#optionConfirm').click(); await expect(page.locator('#optionEditError')).toContainText('其他人已重命名'); await expect(page.locator('#renameName')).toHaveValue('本机草稿'); await page.locator('#optionCancel').click();
+  for(const name of ['', ' ', '长'.repeat(61)]) expect((await request.patch(url,{headers:headers(),data:{name}})).status()).toBe(400);
+  expect((await request.patch('/api/options/invalid',{headers:headers(),data:{name:'名称'}})).status()).toBe(400);
+  expect((await request.patch(url,{headers:headers(),data:{name:'别人改名'}})).status()).toBe(200);
+  let logs=await (await request.get('/api/option-logs',{headers:headers()})).json(); expect(logs.items.filter(x=>x.optionId===item.id)).toHaveLength(2);
+  const db=database(); db.exec("CREATE TRIGGER fail_option_log BEFORE INSERT ON option_logs BEGIN SELECT RAISE(ABORT,'检查留痕事务回滚'); END");
+  try {
+    expect((await request.patch(url,{headers:headers(),data:{name:'不会保存'}})).status()).toBe(500);
+    expect((await request.delete(url,{headers:headers()})).status()).toBe(500);
+    expect((await request.post('/api/options',{headers:headers(),data:{name:'不会添加',category:'外卖'}})).status()).toBe(500);
+  } finally { db.exec('DROP TRIGGER fail_option_log'); db.close(); }
+  const all=await (await request.get('/api/options',{headers:headers()})).json(); expect(all.find(x=>x.id===item.id).name).toBe('别人改名'); expect(all.some(x=>x.name==='不会添加')).toBe(false);
+  await pageTo(page,'转盘'); await pageTo(page,'选项'); await page.locator('[data-delete="'+item.id+'"]').click();
+  await page.route('**/api/options/'+item.id,route=>route.request().method()==='DELETE'?route.abort():route.continue());
+  await page.locator('#optionConfirm').click(); await expect(page.locator('#optionEditError')).toContainText('连接失败'); await expect(page.locator('#optionConfirm')).toBeEnabled(); await page.unroute('**/api/options/'+item.id); await page.locator('#optionCancel').click();
+  for(let i=0;i<32;i++) await request.patch(url,{headers:headers(),data:{name:'分页餐厅'+i}});
+  await pageTo(page,'转盘'); await pageTo(page,'选项'); await expect(page.locator('#additionLog .record')).toHaveCount(30); await page.locator('#logNext').click(); await expect(page.locator('#logPage')).toHaveText('第 2 页');
+  await expect(page.locator('#additionLog')).toContainText('张圣楚 添加'); await page.locator('#logPrev').click(); await expect(page.locator('#additionLog')).toContainText('分页餐厅31');
+  expect((await request.delete(url,{headers:headers(),data:{expectedName:'旧名称'}})).status()).toBe(409);
+  expect((await request.delete(url,{headers:headers()})).status()).toBe(200);
+  expect((await request.post('/api/options',{headers:headers(),data:{name:'分页餐厅31',category:'外卖'}})).status()).toBe(201);
 });

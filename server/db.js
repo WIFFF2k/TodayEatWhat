@@ -98,4 +98,33 @@ if (!pollColumns.some((column) => column.name === 'spin_id')) {
 }
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_poll_spin ON polls(spin_id) WHERE spin_id IS NOT NULL');
 
+// 迁移共享选项和操作留痕，旧选项的添加人及添加时间保持不变
+db.exec('BEGIN IMMEDIATE');
+try {
+  const columns = db.prepare('PRAGMA table_info(options)').all();
+  if (!columns.some(column => column.name === 'deleted_at')) {
+    db.exec('ALTER TABLE options ADD COLUMN deleted_at TEXT');
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS option_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      option_id INTEGER NOT NULL,
+      action TEXT NOT NULL CHECK (action IN ('add','rename','delete')),
+      actor TEXT NOT NULL,
+      category TEXT NOT NULL,
+      old_name TEXT,
+      new_name TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_option_initial_log ON option_logs(option_id) WHERE action='add';
+    INSERT INTO option_logs(option_id,action,actor,category,new_name,created_at)
+      SELECT id,'add',added_by,category,name,created_at FROM options o
+      WHERE NOT EXISTS (SELECT 1 FROM option_logs l WHERE l.option_id=o.id AND l.action='add');
+  `);
+  db.exec('COMMIT');
+} catch (error) {
+  db.exec('ROLLBACK');
+  throw error;
+}
+
 module.exports = db;

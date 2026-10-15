@@ -30,7 +30,7 @@ router.post('/polls', (req, res) => {
     if (spin.user_name !== req.userName) fail(403, 'SPIN_NOT_OWNER', '只能从自己的转盘结果发起投票');
     const existing = db.prepare('SELECT id FROM polls WHERE spin_id=?').get(spinId);
     if (existing) return { id: existing.id };
-    const names = [...new Set([spin.option_name, ...db.prepare('SELECT name FROM options WHERE category=? AND enabled=1 ORDER BY id').all(spin.category).map(row => row.name)])];
+    const names = [...new Set([spin.option_name, ...db.prepare('SELECT name FROM options WHERE category=? AND enabled=1 AND deleted_at IS NULL ORDER BY id').all(spin.category).map(row => row.name)])];
     if (names.length < 2) fail(409, 'POLL_CHOICES_INSUFFICIENT', '该分类至少需要两个不同选项才能投票');
     const config = settings();
     const result = db.prepare('INSERT INTO polls(title,creator,mode,minutes,spin_id) VALUES(?,?,?,?,?)').run(mealTitle(), req.userName, config.pollMode, config.pollMinutes, spinId);
