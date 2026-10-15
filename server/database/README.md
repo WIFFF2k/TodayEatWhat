@@ -10,7 +10,8 @@ index.js 创建唯一 node:sqlite DatabaseSync 连接，使用 config/paths.js �
 | 文件 | 职责 |
 | --- | --- |
 | schema.js | 基础表与查询索引 |
-| seed.js | 白名单、首次餐厅选项、缺失默认配置 |
+| seed.js | 白名单和缺失默认配置 |
+| modules/options/bootstrap.js | 通过逐项新增动作写入首次餐厅及添加记录 |
 | migrations.js | 旧库补充 spin_id、deleted_at、操作记录与关联索引 |
 | transaction.js | 同步业务事务整体提交或回滚 |
 
@@ -20,7 +21,7 @@ users 是姓名白名单；options 是当前餐厅及软删除状态；option_lo
 spin_records 保存抽签用户、分类、当时名称；polls 保存创建时模式、时长和抽签关联
 poll_choices 保存投票候选名称快照；poll_ballots 保存用户选择；settings 保存全局默认配置
 迁移补齐既有选项的添加记录，保留原添加人及时间；唯一索引保证重复启动不重复补日志
-seed 仅在 options 表完全为空时写入初始餐厅；全部软删除后不会重新出现
+首次餐厅由选项领域逐项执行新增并写入 add 记录；全部软删除后不会重新出现
 
 ## 修改与验证
 
