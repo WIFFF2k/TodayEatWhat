@@ -33,7 +33,8 @@ helpers/browser.cjs 提供登录、导航、身份、抽签和隔离数据库访
 | persistence.spec.cjs | 重启后历史、投票、删除及日志保留 |
 | layout.spec.cjs | 默认分类、卡片顺序、按钮对齐、手机无溢出 |
 | skins.spec.cjs | 皮肤记忆、落点、粒子清理、手机、减少动态效果 |
+| wheel-labels.spec.cjs | 多选项转盘各皮肤仍显示完整选项名，不退化序号 |
 
-共 11 个场景，skins 包含两个；从真实界面或 API 产生数据，再校验最终展示和持久化结果
+共 12 个场景，skins 包含两个，wheel-labels 包含一个；从真实界面或 API 产生数据，再校验最终展示和持久化结果
 故障测试主动触发服务器错误日志，以最终断言判断结果；数据库触发器只能写在临时库并及时清理
 截图与 trace 位于 test-results，目录已被 Git 忽略

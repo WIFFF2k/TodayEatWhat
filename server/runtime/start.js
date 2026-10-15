@@ -1,7 +1,7 @@
 // 监听局域网地址、报告启动问题并复用本站进程
 const os = require('os');
 const { spawn } = require('child_process');
-const { projectRoot } = require('../config/paths');
+const { identify } = require('./instance');
 const app = require('../app');
 const port = Number(process.env.PORT || 20180);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -43,20 +43,14 @@ server.on('error', async (error) => {
   if (error.code === 'EACCES') {
     console.error(`[EACCES] 端口 ${port} 被系统保留或禁止使用，请设置 PORT 为可用端口后重试`);
   } else if (error.code === 'EADDRINUSE') {
-    try {
-      // 仅复用同一个项目的实例，不把其他服务当作本站
-      const response = await fetch(`http://127.0.0.1:${port}/api/instance`, { signal: AbortSignal.timeout(3000) });
-      if (!response.ok) throw new Error(`服务标识接口返回 ${response.status}`);
-      const instance = await response.json();
-      if (instance.application !== 'today-eat-what' || instance.directory !== projectRoot) {
-        throw new Error('占用端口的服务不是当前项目');
-      }
+    // 仅复用同一个项目的实例，不把其他服务当作本站
+    const { status, reason } = await identify(port);
+    if (status === 'self') {
       console.log(`网站已经启动，直接打开：http://localhost:${port}`);
       openBrowser();
       return;
-    } catch (cause) {
-      console.error(`[EADDRINUSE] 端口 ${port} 已被占用，无法确认为本站：${cause.message}`);
     }
+    console.error(`[EADDRINUSE] 端口 ${port} 已被占用，无法确认为本站：${reason}`);
   } else {
     console.error(`[${error.code}] 服务启动失败：${error.message}`);
   }

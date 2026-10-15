@@ -1,0 +1,2 @@
+/* 基础皮肤只保留默认盘面并隐藏额外状态文案 */
+.wheel-card[data-skin="basic"] .wheel-status{display:none}

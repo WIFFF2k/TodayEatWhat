@@ -3,18 +3,28 @@ import { state } from '../../../shared/state.js';
 import { api, post } from '../../../shared/api.js';
 import { escape } from '../../../shared/display.js';
 import { busy, toast, failure, navigate } from '../../../shared/interaction.js';
-import { drawWheel, selectedSkin, reducedMotion, celebrate, clearCelebration } from '../renderers/wheel.js';
+import { drawWheel, selectedSkin, reducedMotion, celebrate, clearCelebration, skinList, getSkinConfig } from '../renderers/wheel.js';
 export async function renderWheel(view) {
-  // 根据最新共享选项构建抽签界面
+  // 根据最新共享选项构建抽签界面，并按当前皮肤装配外观区块
   state.options = await api('/options');
-  view.innerHTML = '<div class="card wheel-card"><div class="row wheel-toolbar"><div class="row"><label for="category">用餐方式</label><select id="category"><option value="外卖">点外卖</option><option>出去吃</option></select><span id="wheelCount" class="muted"></span></div><div class="skin-control"><label for="wheelSkin">转盘皮肤</label><select id="wheelSkin"><option value="basic">基础皮肤</option><option value="neon">霓虹宇宙 ✦</option></select></div></div><div class="neon-intro"><span class="eyebrow">201 · 味觉探索计划</span><h2>让宇宙决定这一餐</h2><p>启动能量 · 捕获今天的美味坐标</p></div><div class="wheel-box"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-stage"><span class="wheel-ring ring-outer" aria-hidden="true"></span><span class="wheel-ring ring-inner" aria-hidden="true"></span><canvas id="wheel" width="720" height="720" aria-label="餐厅转盘"></canvas><span class="wheel-core" aria-hidden="true">201</span><div class="wheel-particles" aria-hidden="true"></div></div><span class="neon-caption">每一份期待，都有相同的机会</span><button class="btn" id="spin">开始转盘</button><div class="wheel-status" role="status">能量就绪，等待启航</div></div><div id="result" aria-live="polite"></div><details><summary>查看转盘全部选项</summary><ol id="wheelNames"></ol></details></div>';
+  const skins = skinList();
+  const skinId = selectedSkin();
+  const skin = getSkinConfig(skinId);
+  const options = skins.map(item => '<option value="' + item.id + '">' + item.label + '</option>').join('');
+  const intros = skins.map(item => item.content.intro).join('');
+  const stageBefore = skins.map(item => item.content.before).join('');
+  const stageAfter = skins.map(item => item.content.after).join('');
+  const captions = skins.map(item => item.content.caption).join('');
+  view.innerHTML = '<div class="card wheel-card"><div class="row wheel-toolbar"><div class="row"><label for="category">用餐方式</label><select id="category"><option value="外卖">点外卖</option><option>出去吃</option></select><span id="wheelCount" class="muted"></span></div><div class="skin-control"><label for="wheelSkin">转盘皮肤</label><select id="wheelSkin">' + options + '</select></div></div>' + intros + '<div class="wheel-box"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-stage">' + stageBefore + '<canvas id="wheel" width="720" height="720" aria-label="餐厅转盘"></canvas>' + stageAfter + '<div class="wheel-particles" aria-hidden="true"></div></div>' + captions + '<button class="btn" id="spin">开始转盘</button><div class="wheel-status" role="status">' + skin.statuses.ready + '</div></div><div id="result" aria-live="polite"></div><details><summary>查看转盘全部选项</summary><ol id="wheelNames"></ol></details></div>';
   view = view.querySelector('.wheel-card');
-  view.dataset.skin = selectedSkin(); view.querySelector('#wheelSkin').value = view.dataset.skin;
+  view.dataset.skin = skinId; view.querySelector('#wheelSkin').value = skinId;
   view.querySelector('#category').value = state.category;
   view.querySelector('#wheelSkin').onchange = event => {
     // 皮肤只改变外观，保留候选和结果快照
     if (state.busy) return;
-    localStorage.setItem('eat-wheel-skin',event.target.value); view.dataset.skin=event.target.value;
+    const next = getSkinConfig(event.target.value);
+    localStorage.setItem('eat-wheel-skin', next.id); view.dataset.skin = next.id;
+    view.querySelector('.wheel-status').textContent = next.statuses.ready;
     clearCelebration(view); drawAvailable(view); renderResult(view);
   };
   drawAvailable(view); renderResult(view);
@@ -58,19 +68,19 @@ async function spin(view) {
   // 先取得已入库结果，再播放精确落在中奖扇区的动画
   if (state.busy) return; busy(true);
   const button = view.querySelector('#spin'); const category = view.querySelector('#category'); button.disabled = true; category.disabled = true;
-  const skin=view.querySelector('#wheelSkin'); skin.disabled=true; clearCelebration(view); view.classList.add('is-spinning');
-  view.querySelector('.wheel-status').textContent='正在连接美味星系…';
+  const skin = getSkinConfig(view.dataset.skin); const skinControl = view.querySelector('#wheelSkin'); skinControl.disabled = true; clearCelebration(view); view.classList.add('is-spinning');
+  view.querySelector('.wheel-status').textContent = skin.statuses.start;
   const oldPollButton = view.querySelector('#createPoll'); if (oldPollButton) oldPollButton.disabled = true;
   try {
     const result = await post('/spins', { category: state.category }); const canvas = view.querySelector('#wheel');
     drawWheel(canvas, result.entries, view.dataset.skin);
-    view.querySelector('.wheel-status').textContent='能量流转中 · 即将锁定美味';
+    view.querySelector('.wheel-status').textContent = skin.statuses.spinning;
     const targetAngle = landing(result);
     canvas.style.transform = 'rotate(0deg)';
-    const animation = canvas.animate([{ transform:'rotate(0deg)' }, { transform:'rotate(' + targetAngle + 'deg)' }], { duration: reducedMotion() ? 120 : view.dataset.skin === 'neon' ? 4200 : 3200, easing:'cubic-bezier(.15,.75,.18,1)', fill:'forwards' });
+    const animation = canvas.animate([{ transform:'rotate(0deg)' }, { transform:'rotate(' + targetAngle + 'deg)' }], { duration: reducedMotion() ? 120 : skin.duration, easing:'cubic-bezier(.15,.75,.18,1)', fill:'forwards' });
     await animation.finished; canvas.style.transform = 'rotate(' + targetAngle + 'deg)'; animation.cancel();
     state.lastSpin = result; canvas.dataset.winnerIndex = result.index; canvas.dataset.angle = targetAngle; renderResult(view);
-    view.querySelector('.wheel-status').textContent='坐标已锁定 · 美味降临'; celebrate(view);
-  } catch (error) { view.querySelector('.wheel-status').textContent='启航未完成，请重试'; failure(error); }
-  finally { view.classList.remove('is-spinning'); busy(false); category.disabled=false; skin.disabled=false; drawAvailable(view); if (oldPollButton) oldPollButton.disabled=false; }
+    view.querySelector('.wheel-status').textContent = skin.statuses.done; celebrate(view);
+  } catch (error) { view.querySelector('.wheel-status').textContent = skin.statuses.error; failure(error); }
+  finally { view.classList.remove('is-spinning'); busy(false); category.disabled=false; skinControl.disabled=false; drawAvailable(view); if (oldPollButton) oldPollButton.disabled=false; }
 }

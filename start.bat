@@ -37,6 +37,7 @@ if not exist "node_modules\express" (
 
 echo 正在启动今天吃啥...
 set "OPEN_BROWSER=1"
+node "server\runtime\replace.js"
 call npm start
 if errorlevel 1 (
   echo 网站启动失败，请查看上方错误信息
