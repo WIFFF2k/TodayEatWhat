@@ -14,7 +14,7 @@ async function login() {
   document.title = title();
   if (state.user && bootstrap.users.includes(state.user)) return shell();
   state.user = ''; localStorage.removeItem('eat-user');
-  app.innerHTML = '<div class="login"><form class="card login-card" id="loginForm"><h1>' + title() + '</h1><p class="muted">201 的这一餐，交给转盘决定</p><label for="loginName">选择你的姓名</label><select id="loginName" required><option value="">请选择姓名</option>' + bootstrap.users.map(name => '<option>' + escape(name) + '</option>').join('') + '</select><button class="btn" type="submit">进入</button></form></div>';
+  app.innerHTML = '<div class="login"><form class="card login-card" id="loginForm"><h1>' + title() + '</h1><p class="muted">打死不去西一吃</p><select id="loginName" required><option value="">请选择姓名</option>' + bootstrap.users.map(name => '<option>' + escape(name) + '</option>').join('') + '</select><button class="btn" type="submit">进入</button></form></div>';
   document.querySelector('#loginForm').onsubmit = async event => {
     // 姓名选择成功后保存身份并进入主页
     event.preventDefault(); state.user = document.querySelector('#loginName').value;

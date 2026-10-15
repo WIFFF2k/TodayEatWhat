@@ -60,6 +60,7 @@ test('两个设备共享选项，转盘落点、结果和历史记录一致', as
   const otherContext = await browser.newContext(); const other = await otherContext.newPage(); const errors=[];
   page.on('pageerror',e=>errors.push(e.message)); other.on('pageerror',e=>errors.push(e.message));
   await login(page); await login(other,secondName); await pageTo(page,'选项');
+  await other.locator('#category').selectOption('外卖');
   const name = '<img src=x onerror=alert(1)>很长的餐厅名称（金地太阳城分店）';
   await page.locator('#newName').fill(name); await page.locator('#addForm button').click();
   await expect(page.locator('#additionLog').getByText(name,{exact:true})).toBeVisible();
@@ -107,7 +108,7 @@ test('边界候选、旧投票分页、事务回滚及重复启动有明确行�
   // 请求只写临时库，验证边界与持久化事实
   const all=await (await request.get('/api/options',{headers:headers()})).json();
   for (const option of all.filter(x=>x.category==='外卖')) await request.patch('/api/options/'+option.id,{headers:headers(),data:{enabled:false}});
-  await login(page); await expect(page.locator('#spin')).toBeDisabled(); expect((await request.post('/api/spins',{headers:headers(),data:{category:'外卖'}})).status()).toBe(409);
+  await login(page); await page.locator('#category').selectOption('外卖'); await expect(page.locator('#spin')).toBeDisabled(); expect((await request.post('/api/spins',{headers:headers(),data:{category:'外卖'}})).status()).toBe(409);
   await request.patch('/api/options/1',{headers:headers(),data:{enabled:true}}); await expect(page.locator('#spin')).toBeEnabled({timeout:10000}); const one=await spin(page); expect(one.winner.name).toBe('大米先生');
   expect((await request.post('/api/polls',{headers:headers(),data:{spinId:one.id}})).status()).toBe(409);
   await request.patch('/api/options/2',{headers:headers(),data:{enabled:true}});
@@ -125,6 +126,14 @@ test('边界候选、旧投票分页、事务回滚及重复启动有明确行�
 test('手机各页面无横向溢出且刷新显示数据，页面没有未捕获异常', async ({ page }) => {
   // 检查真实手机宽度下每个页面的布局和内容
   const errors=[]; page.on('pageerror',e=>errors.push(e.message)); await page.setViewportSize({width:390,height:844}); await login(page);
+  await expect(page.locator('#category')).toHaveValue('出去吃');
+  await page.reload(); await expect(page.locator('#category')).toHaveValue('出去吃');
+  await page.setViewportSize({width:1280,height:900}); await pageTo(page,'选项');
+  await expect(page.locator('#optionGroups h2')).toHaveText(['出去吃','外卖']);
+  const controls=await page.locator('#newName,#newCategory,#addForm>button').evaluateAll(nodes=>nodes.map(node=>{const box=node.getBoundingClientRect();return {top:box.top,bottom:box.bottom,height:box.height};}));
+  for(const box of controls) { expect(Math.abs(box.top-controls[0].top)).toBeLessThan(1); expect(Math.abs(box.bottom-controls[0].bottom)).toBeLessThan(1); }
+  const cards=await page.locator('#optionGroups>.card').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().x)); expect(cards[0]).toBeLessThan(cards[1]);
+  await page.screenshot({path:'test-results/options-aligned.png',fullPage:true});
   for(const width of [390,320]) { await page.setViewportSize({width,height:844}); for(const name of ['转盘','选项','投票','记录','设置']) { await pageTo(page,name); await expect(page.locator('#content .card').first()).toBeVisible(); expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true); } }
   await page.setViewportSize({width:1280,height:900}); await pageTo(page,'转盘'); await page.screenshot({path:'test-results/desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844}); await page.screenshot({path:'test-results/mobile.png',fullPage:true});

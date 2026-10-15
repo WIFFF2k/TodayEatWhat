@@ -24,7 +24,7 @@ export async function renderOptions(view) {
 }
 function fill(view) {
   // 操作按钮位于勾选标签外，避免点击按钮触发勾选
-  view.querySelector('#optionGroups').innerHTML = ['外卖','出去吃'].map(category => {
+  view.querySelector('#optionGroups').innerHTML = ['出去吃','外卖'].map(category => {
     // 每个分类只展示尚未删除的选项
     const items = state.options.filter(item => item.category === category);
     return '<div class="card"><h2>' + category + '</h2>' + (items.length ? items.map(item => '<div class="option-row" data-row="' + item.id + '"><label class="option"><input type="checkbox" data-option="' + item.id + '" ' + (item.enabled ? 'checked' : '') + '><span>' + escape(item.name) + '</span><small>' + escape(item.addedBy) + '</small></label><div class="option-actions"><button class="btn secondary" data-rename="' + item.id + '">重命名</button><button class="btn danger" data-delete="' + item.id + '">删除</button></div></div>').join('') : '<p class="muted">暂无选项，可在上方添加</p>') + '</div>';

@@ -1,5 +1,5 @@
 // 集中维护浏览器请求、显示安全和页面会话状态
-export const state = { user: localStorage.getItem('eat-user') || '', page: '转盘', category: '外卖', options: [], busy: false, dirty: false, serverOffset: 0, title: '', lastSpin: null, pollId: null, offset: 0 };
+export const state = { user: localStorage.getItem('eat-user') || '', page: '转盘', category: '出去吃', options: [], busy: false, dirty: false, serverOffset: 0, title: '', lastSpin: null, pollId: null, offset: 0 };
 export async function api(url, init = {}) {
   // 姓名只在请求边界编码，网络和接口错误显示为中文
   let response;
