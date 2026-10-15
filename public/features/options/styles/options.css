@@ -3,6 +3,7 @@
 #addForm input,#addForm select,#addForm>.btn{min-height:var(--control-height)}
 #addForm>.btn{line-height:inherit;border:1px solid transparent}
 .option-row{background:#f7f9fc;border-radius:9px;margin:10px 0;padding-bottom:10px;cursor:grab}
+.option-groups{grid-template-columns:repeat(3,minmax(0,1fr))}
 .option-row.is-dragging{opacity:.45}
 .option-group.drag-over{outline:2px dashed #2d78d7;outline-offset:4px;background:#edf3fb}
 .option-row .option{margin:0}
@@ -15,4 +16,4 @@ dialog p{overflow-wrap:anywhere}
 dialog .row{margin-top:20px}
 #optionEditError{color:#a53129}
 .option small{max-width:5em}
-@media(max-width:760px){.option small{grid-column:2;max-width:none}}
+@media(max-width:760px){.option-groups{grid-template-columns:minmax(0,1fr);gap:0}.option small{grid-column:2;max-width:none}}
