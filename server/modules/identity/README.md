@@ -2,7 +2,7 @@
 
 ## 文件职责
 
-routes.js 提供 bootstrap；services/identity.js 组合姓名、配置和时间；repositories/users.js 查询白名单
+routes.js 提供 bootstrap；services/identity.js 组合姓名、配置、用餐分类和时间；repositories/users.js 查询白名单
 
 ## 必须保留的规则
 

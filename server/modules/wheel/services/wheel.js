@@ -1,5 +1,6 @@
 // 执行抽签快照与历史写入
 const { fail } = require('../../../shared/errors');
+const { categories, isCategoryKey } = require('../../../shared/categories');
 const transaction = require('../../../database/transaction');
 const { insertSpin } = require('../repositories/wheel');
 const { enabledOptions } = require('../../options/repositories/options');
@@ -7,7 +8,7 @@ const { randomInt } = require('crypto');
 function spin(body, actor) {
   // 根据最新的全局启用项抽签并保存唯一结果
   const { category } = body;
-  if (!['外卖', '出去吃'].includes(category)) fail(400, 'CATEGORY_INVALID', '请选择外卖或出去吃');
+  if (!isCategoryKey(category)) fail(400, 'CATEGORY_INVALID', '请选择' + categories.map(item => item.label).join('、'));
   const result = transaction(() => {
     // 候选快照、随机选择和记录写入保持一致
     const entries = enabledOptions(category);

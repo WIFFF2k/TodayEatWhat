@@ -7,6 +7,7 @@ import { drawWheel, selectedSkin, reducedMotion, celebrate, clearCelebration, sk
 export async function renderWheel(view) {
   // 根据最新共享选项构建抽签界面，并按当前皮肤装配外观区块
   state.options = await api('/options');
+  const categoryOptions = state.categories.map(category => '<option value="' + escape(category.key) + '">' + escape(category.label) + '</option>').join('');
   const skins = skinList();
   const skinId = selectedSkin();
   const skin = getSkinConfig(skinId);
@@ -15,7 +16,7 @@ export async function renderWheel(view) {
   const stageBefore = skins.map(item => item.content.before).join('');
   const stageAfter = skins.map(item => item.content.after).join('');
   const captions = skins.map(item => item.content.caption).join('');
-  view.innerHTML = '<div class="card wheel-card"><div class="row wheel-toolbar"><div class="row"><label for="category">用餐方式</label><select id="category"><option value="外卖">点外卖</option><option>出去吃</option></select><span id="wheelCount" class="muted"></span></div><div class="skin-control"><label for="wheelSkin">转盘皮肤</label><select id="wheelSkin">' + options + '</select></div></div>' + intros + '<div class="wheel-box"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-stage">' + stageBefore + '<canvas id="wheel" width="720" height="720" aria-label="餐厅转盘"></canvas>' + stageAfter + '<div class="wheel-particles" aria-hidden="true"></div></div>' + captions + '<button class="btn" id="spin">开始转盘</button><div class="wheel-status" role="status">' + skin.statuses.ready + '</div></div><div id="result" aria-live="polite"></div><details><summary>查看转盘全部选项</summary><ol id="wheelNames"></ol></details></div>';
+  view.innerHTML = '<div class="card wheel-card"><div class="row wheel-toolbar"><div class="row"><label for="category">用餐方式</label><select id="category">' + categoryOptions + '</select><span id="wheelCount" class="muted"></span></div><div class="skin-control"><label for="wheelSkin">转盘皮肤</label><select id="wheelSkin">' + options + '</select></div></div>' + intros + '<div class="wheel-box"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-stage">' + stageBefore + '<canvas id="wheel" width="720" height="720" aria-label="餐厅转盘"></canvas>' + stageAfter + '<div class="wheel-particles" aria-hidden="true"></div></div>' + captions + '<button class="btn" id="spin">开始转盘</button><div class="wheel-status" role="status">' + skin.statuses.ready + '</div></div><div id="result" aria-live="polite"></div><details><summary>查看转盘全部选项</summary><ol id="wheelNames"></ol></details></div>';
   view = view.querySelector('.wheel-card');
   view.dataset.skin = skinId; view.querySelector('#wheelSkin').value = skinId;
   view.querySelector('#category').value = state.category;

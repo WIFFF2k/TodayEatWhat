@@ -12,6 +12,11 @@ export function title() {
   // 标题规则统一由服务端提供
   return state.title;
 }
+export function categoryLabel(key) {
+  // 把数据库分类 key 显示为服务端下发的当前名称
+  const item = state.categories.find(category => category.key === key);
+  return item ? item.label : key;
+}
 export function time(value) {
   // 按上海时间显示明确的记录日期
   return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'short', timeStyle: 'short' }).format(value);

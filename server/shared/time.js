@@ -6,6 +6,6 @@ function timestamp(value) {
 function mealTitle() {
   // 按上海时间区分中午和晚上
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
-  return (hour < 17 ? '中午' : '晚上') + '吃啥（201版）';
+  return (hour < 17 ? '中午' : '晚上') + '吃啥';
 }
 module.exports = { timestamp, mealTitle };

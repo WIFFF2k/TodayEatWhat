@@ -17,7 +17,7 @@ index.html 加载 styles/index.css 和 app.js，应用层处理会话、页面�
 | 模块 | 维护入口 |
 | --- | --- |
 | [wheel](features/wheel/README.md) | 页面、Canvas 绘制、基础、霓虹和奶龙转盘样式 |
-| [options](features/options/README.md) | 添加和勾选、编辑确认、操作记录 |
+| [options](features/options/README.md) | 添加和勾选、拖动归类、编辑确认、操作记录 |
 | [polls](features/polls/README.md) | 投票列表、详情、改票和票数同步 |
 | [settings](features/settings/README.md) | 全局默认配置表单 |
 | [records](features/records/README.md) | 历史分页、跳转关联投票 |
@@ -27,7 +27,7 @@ index.html 加载 styles/index.css 和 app.js，应用层处理会话、页面�
 
 ## 外观约定
 
-转盘刷新默认出去吃；皮肤默认基础，localStorage 保存 eat-user、eat-wheel-skin
+转盘刷新默认 casual_out；皮肤默认基础，localStorage 保存 eat-user、eat-wheel-skin、eat-option-log-size
 皮肤与当前分类各浏览器独立，餐厅和投票经服务器共享
-选项卡片桌面出去吃在左、外卖在右，手机按此顺序上下排列；添加控件等高对齐
+分类使用稳定 key，显示名由 bootstrap.categories 提供；选项卡片按该顺序排列，手机按此顺序上下排列；添加控件等高对齐
 修改后刷新浏览器，缓存未更新用 Ctrl+F5；功能 CSS 放入自己的 styles 目录

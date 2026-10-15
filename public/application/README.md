@@ -1,6 +1,6 @@
 # 应用编排
 
-session.js 管理白名单登录、退出及侧栏外壳，router.js 分发功能页
+session.js 管理白名单登录、退出、用餐分类下发及侧栏外壳，router.js 分发功能页
 lifecycle.js 保存唯一页面代次；导航和身份切换递增，异步响应写页面前检查代次
 sync.js 每次只同步当前功能页所需数据，计时器仅由 public/app.js 创建一次
 

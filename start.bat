@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title 今天吃啥（201版）
+title 今天吃啥
 cd /d "%~dp0"
 
 echo 正在检查 Node.js 环境...

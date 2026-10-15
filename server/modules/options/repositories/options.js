@@ -17,14 +17,14 @@ function findDuplicate(name, category, id) {
   return db.prepare('SELECT id FROM options WHERE name=? AND category=? AND id<>? AND deleted_at IS NULL').get(name, category, id);
 }
 
-function insertLog(item, action, actor, oldName, newName) {
+function insertLog(item, action, actor, oldName, newName, oldCategory = null, newCategory = item.category) {
   // 写入不可变的操作快照
-  return db.prepare('INSERT INTO option_logs(option_id,action,actor,category,old_name,new_name) VALUES(?,?,?,?,?,?)').run(item.id, action, actor, item.category, oldName, newName);
+  return db.prepare('INSERT INTO option_logs(option_id,action,actor,category,old_category,new_category,old_name,new_name) VALUES(?,?,?,?,?,?,?,?)').run(item.id, action, actor, newCategory ?? item.category, oldCategory, newCategory, oldName, newName);
 }
 
-function readLogs(before) {
+function readLogs(before, size) {
   // 按游标读取一页及下一页标志所需记录
-  return db.prepare('SELECT id,option_id AS optionId,action,actor,category,old_name AS oldName,new_name AS newName,created_at AS createdAt FROM option_logs WHERE id<? ORDER BY id DESC LIMIT 31').all(before);
+  return db.prepare('SELECT id,option_id AS optionId,action,actor,category,old_category AS oldCategory,new_category AS newCategory,old_name AS oldName,new_name AS newName,created_at AS createdAt FROM option_logs WHERE id<? ORDER BY id DESC LIMIT ?').all(before, size + 1);
 }
 
 function insertOption(name, category, actor) {
@@ -42,6 +42,11 @@ function renameOption(name, id) {
   return db.prepare('UPDATE options SET name=? WHERE id=?').run(name, id);
 }
 
+function moveOption(category, id) {
+  // 更新选项所属分类
+  return db.prepare('UPDATE options SET category=? WHERE id=?').run(category, id);
+}
+
 function softDelete(id) {
   // 标记删除并停用选项
   return db.prepare("UPDATE options SET deleted_at=datetime('now','localtime'),enabled=0 WHERE id=?").run(id);
@@ -52,4 +57,4 @@ function enabledOptions(category) {
   return db.prepare('SELECT id,name,category FROM options WHERE category=? AND enabled=1 AND deleted_at IS NULL ORDER BY id').all(category);
 }
 
-module.exports = { options, getOption, findDuplicate, insertLog, readLogs, insertOption, setEnabled, renameOption, softDelete, enabledOptions };
+module.exports = { options, getOption, findDuplicate, insertLog, readLogs, insertOption, setEnabled, renameOption, moveOption, softDelete, enabledOptions };
