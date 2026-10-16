@@ -8,9 +8,12 @@ import { renderOptions } from '../features/options/views/page.js';
 import { renderPolls } from '../features/polls/views/page.js';
 import { renderSettings } from '../features/settings/views/page.js';
 import { renderRecords } from '../features/records/views/page.js';
+import { renderGame } from '../features/game/views/page.js';
+let cleanupPage;
 export async function renderPage() {
   // 通过独立容器防止旧请求覆盖新页面
   const version = ++lifecycle.generation; const content = document.querySelector('#content');
+  cleanupPage?.(); cleanupPage = undefined;
   busy(true);
   document.querySelector('#pageTitle').textContent = state.page;
   document.querySelectorAll('[data-page]').forEach(button => button.classList.toggle('active', button.dataset.page === state.page));
@@ -18,6 +21,7 @@ export async function renderPage() {
   const view = document.createElement('div');
   try {
     if (state.page === '转盘') await renderWheel(view);
+    else if (state.page === '飞机大战') cleanupPage = await renderGame(view);
     else if (state.page === '选项') await renderOptions(view);
     else if (state.page === '投票') await renderPolls(view);
     else if (state.page === '设置') await renderSettings(view);

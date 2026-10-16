@@ -17,6 +17,7 @@ index.html 加载 styles/index.css 和 app.js，应用层处理会话、页面�
 | 模块 | 维护入口 |
 | --- | --- |
 | [wheel](features/wheel/README.md) | 页面、Canvas 绘制、基础、霓虹和奶龙转盘样式 |
+| [game](features/game/README.md) | 今日空战、敌机战斗和终点转盘结果 |
 | [options](features/options/README.md) | 添加和勾选、拖动归类、编辑确认、操作记录 |
 | [polls](features/polls/README.md) | 投票列表、详情、改票和票数同步 |
 | [settings](features/settings/README.md) | 全局默认配置表单 |
