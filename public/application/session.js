@@ -13,6 +13,7 @@ export async function login() {
   state.serverOffset = bootstrap.serverTime - Date.now();
   state.title = bootstrap.title;
   state.categories = bootstrap.categories;
+  state.members = bootstrap.users;
   if (!state.categories.some(item => item.key === state.category)) state.category = state.categories.find(item => item.key === 'casual_out')?.key || state.categories[0]?.key || '';
   document.title = title();
   if (state.user && bootstrap.users.includes(state.user)) return shell();

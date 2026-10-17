@@ -19,7 +19,7 @@ async function login(page, name = username) {
 async function pageTo(page, name) {
   // 点击侧栏切换页面并等待功能标题
   await page.locator('nav').getByRole('button',{name,exact:true}).click(); await expect(page.locator('#pageTitle')).toHaveText(name);
-  const ready = { '转盘':'#spin', '选项':'#addForm', '投票':'#pollList', '记录':'.pager', '设置':'#settingsForm' };
+  const ready = { '转盘':'#spin', '选项':'#addForm', '投票':'#pollList', '回忆':'#memoryForm', '记录':'.pager', '设置':'#settingsForm' };
   await expect(page.locator(ready[name])).toBeVisible();
 }
 async function spin(page) {

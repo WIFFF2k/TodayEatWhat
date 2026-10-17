@@ -4,7 +4,7 @@ const { database } = require('../helpers/browser.cjs');
 function resetDatabase() {
   // 清理临时业务数据并恢复当前项目的原始候选
   const db = database();
-  db.exec("DELETE FROM poll_ballots; DELETE FROM poll_choices; DELETE FROM polls; DELETE FROM spin_records; DELETE FROM option_logs WHERE option_id>12 OR action<>'add'; DELETE FROM options WHERE id>12; UPDATE options SET enabled=1,deleted_at=NULL,name=(SELECT new_name FROM option_logs WHERE option_id=options.id AND action='add');");
+  db.exec("DELETE FROM memories; DELETE FROM poll_ballots; DELETE FROM poll_choices; DELETE FROM polls; DELETE FROM spin_records; DELETE FROM option_logs WHERE option_id>12 OR action<>'add'; DELETE FROM options WHERE id>12; UPDATE options SET enabled=1,deleted_at=NULL,name=(SELECT new_name FROM option_logs WHERE option_id=options.id AND action='add');");
   db.prepare('UPDATE settings SET value=? WHERE key=?').run('single','pollMode'); db.prepare('UPDATE settings SET value=? WHERE key=?').run('60','pollMinutes'); db.close();
 }
 const test = base.extend({
