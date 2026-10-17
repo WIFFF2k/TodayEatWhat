@@ -118,12 +118,25 @@ module.exports = function migrate(db) {
       SELECT id,'add',added_by,category,NULL,category,NULL,name,created_at FROM options o
       WHERE NOT EXISTS (SELECT 1 FROM option_logs l WHERE l.option_id=o.id AND l.action='add');
   `);
+  // 为独立失败结果池补齐稳定颜色槽位，旧数据按现有顺序分配
+  const gamePoolColumns = db.prepare('PRAGMA table_info(game_failure_options)').all();
+  const addedGameStyle = !gamePoolColumns.some(column => column.name === 'style_index');
+  if (addedGameStyle) {
+    db.exec('ALTER TABLE game_failure_options ADD COLUMN style_index INTEGER NOT NULL DEFAULT 0');
+    const gamePoolRows = db.prepare('SELECT id FROM game_failure_options WHERE deleted_at IS NULL ORDER BY id').all();
+    const updateGamePoolStyle = db.prepare('UPDATE game_failure_options SET style_index=? WHERE id=?');
+    gamePoolRows.forEach((row, index) => updateGamePoolStyle.run(index % 10, row.id));
+  }
   // 为新世界建立唯一初始种子，后续重置由迩灵邑业务接口负责
   db.prepare("INSERT OR IGNORE INTO realm_world(id,seed,epoch) VALUES(1,abs(random()) % 2147483647,1)").run();
   db.exec('UPDATE realm_world SET seed=abs(seed) % 2147483647 WHERE id=1');
   // 为持续对抗补充攻击冷却字段
   const realmPlayerColumns = db.prepare('PRAGMA table_info(realm_players)').all();
+  if (!realmPlayerColumns.some(column => column.name === 'gather_ready_at')) db.exec('ALTER TABLE realm_players ADD COLUMN gather_ready_at INTEGER NOT NULL DEFAULT 0');
   if (!realmPlayerColumns.some(column => column.name === 'attack_ready_at')) db.exec('ALTER TABLE realm_players ADD COLUMN attack_ready_at TEXT');
+  // 为遗迹地块补充探索归属，让野外冒险有明确的一次性记录
+  const realmTileColumns = db.prepare('PRAGMA table_info(realm_tiles)').all();
+  if (!realmTileColumns.some(column => column.name === 'explored_by')) db.exec('ALTER TABLE realm_tiles ADD COLUMN explored_by TEXT REFERENCES users(name)');
   db.exec(`CREATE TABLE IF NOT EXISTS realm_action_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor TEXT NOT NULL REFERENCES users(name),
@@ -133,4 +146,36 @@ module.exports = function migrate(db) {
     result TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
   ); CREATE INDEX IF NOT EXISTS idx_realm_action_logs_actor ON realm_action_logs(actor, id DESC);`);
+  // 为限时事件补充每位玩家的一次性参与记录
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_event_participants (
+    event_id INTEGER NOT NULL REFERENCES realm_events(id) ON DELETE CASCADE,
+    user_name TEXT NOT NULL REFERENCES users(name),
+    participated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (event_id, user_name)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_event_participants_user ON realm_event_participants(user_name, event_id DESC);`);
+  // 为多人协作补充联盟与联盟仓库
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    leader TEXT NOT NULL REFERENCES users(name),
+    grain INTEGER NOT NULL DEFAULT 0,
+    wood INTEGER NOT NULL DEFAULT 0,
+    ore INTEGER NOT NULL DEFAULT 0,
+    essence INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE TABLE IF NOT EXISTS realm_alliance_members (
+    alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    user_name TEXT PRIMARY KEY REFERENCES users(name),
+    role TEXT NOT NULL DEFAULT 'member',
+    contribution INTEGER NOT NULL DEFAULT 0,
+    joined_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE INDEX IF NOT EXISTS idx_realm_alliance_members_alliance ON realm_alliance_members(alliance_id, contribution DESC);`);
+  // 为联盟公共工程补充进度表
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliance_projects (
+    alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    project_key TEXT NOT NULL,
+    level INTEGER NOT NULL DEFAULT 0,
+    progress INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (alliance_id, project_key)
+  );`);
 };
