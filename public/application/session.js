@@ -28,7 +28,7 @@ export async function login() {
 async function shell() {
   // 构建稳定侧栏，数据刷新只更新当前内容区域
   state.page = '转盘'; state.pollId = null; state.lastSpin = null;
-  app.innerHTML = '<div class="shell"><aside><div class="brand" data-title></div><div class="muted">201 · 今天一起吃</div><nav>' + ['转盘','飞机大战','选项','投票','记录','设置'].map(page => '<button data-page="' + page + '">' + page + '</button>').join('') + '</nav></aside><main><header><h1 id="pageTitle"></h1><div class="row"><span>' + escape(state.user) + '</span><button class="btn secondary" id="switch">切换姓名</button></div></header><div id="connection" role="status"></div><div id="notifications"></div><section id="content"></section></main></div>';
+  app.innerHTML = '<div class="shell"><aside><div class="brand" data-title></div><div class="muted">201 · 今天一起吃</div><nav>' + ['转盘','迩灵邑','飞机大战','选项','投票','回忆','记录','设置'].map(page => '<button data-page="' + page + '">' + page + '</button>').join('') + '</nav></aside><main><header><h1 id="pageTitle"></h1><div class="row"><span>' + escape(state.user) + '</span><button class="btn secondary" id="switch">切换姓名</button></div></header><div id="connection" role="status"></div><div id="notifications"></div><section id="content"></section></main></div>';
   document.querySelectorAll('[data-page]').forEach(button => { button.onclick = () => navigate(button.dataset.page); });
   document.querySelector('[data-title]').textContent = title();
   document.querySelector('#switch').onclick = async () => {

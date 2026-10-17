@@ -118,4 +118,19 @@ module.exports = function migrate(db) {
       SELECT id,'add',added_by,category,NULL,category,NULL,name,created_at FROM options o
       WHERE NOT EXISTS (SELECT 1 FROM option_logs l WHERE l.option_id=o.id AND l.action='add');
   `);
+  // 为新世界建立唯一初始种子，后续重置由迩灵邑业务接口负责
+  db.prepare("INSERT OR IGNORE INTO realm_world(id,seed,epoch) VALUES(1,abs(random()) % 2147483647,1)").run();
+  db.exec('UPDATE realm_world SET seed=abs(seed) % 2147483647 WHERE id=1');
+  // 为持续对抗补充攻击冷却字段
+  const realmPlayerColumns = db.prepare('PRAGMA table_info(realm_players)').all();
+  if (!realmPlayerColumns.some(column => column.name === 'attack_ready_at')) db.exec('ALTER TABLE realm_players ADD COLUMN attack_ready_at TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_action_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor TEXT NOT NULL REFERENCES users(name),
+    action TEXT NOT NULL,
+    target_q INTEGER,
+    target_r INTEGER,
+    result TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE INDEX IF NOT EXISTS idx_realm_action_logs_actor ON realm_action_logs(actor, id DESC);`);
 };
