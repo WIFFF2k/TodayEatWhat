@@ -2,7 +2,7 @@
 import { state } from '../../../shared/state.js';
 import { post } from '../../../shared/api.js';
 import { toast, failure, busy } from '../../../shared/interaction.js';
-export function edit(view, item, action, onSaved) {
+export function edit(view, item, action, onSaved, config = {}) {
   // 确认全局变更，错误直接显示在弹窗内
   const dialog = view.querySelector('#optionDialog'); const form = view.querySelector('#optionEditForm');
   const rename = action === 'rename'; const input = view.querySelector('#renameName');
@@ -27,7 +27,7 @@ export function edit(view, item, action, onSaved) {
     view.querySelector('#optionEditError').textContent = '';
     try {
       const body = { expectedName: item.name }; if (rename) body.name = input.value;
-      const result = await post('/options/' + item.id, body, rename ? 'PATCH' : 'DELETE');
+      const result = await post((config.base || '/options') + '/' + item.id, body, rename ? 'PATCH' : 'DELETE');
       state.options = result.options; dialog.close(); toast(rename ? '名称已保存，已保留操作记录' : '选项已删除，历史记录仍保留');
       await onSaved();
     } catch (error) {

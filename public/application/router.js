@@ -23,7 +23,10 @@ export async function renderPage() {
   const view = document.createElement('div');
   try {
     if (state.page === '转盘') await renderWheel(view);
-    else if (state.page === '迩灵邑') await renderRealm(view);
+    else if (state.page === '迩灵邑') {
+      const realmCleanup = await renderRealm(view);
+      if (version === lifecycle.generation) cleanupPage = realmCleanup;
+    }
     else if (state.page === '飞机大战') cleanupPage = await renderGame(view);
     else if (state.page === '选项') await renderOptions(view);
     else if (state.page === '投票') await renderPolls(view);

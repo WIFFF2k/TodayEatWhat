@@ -5,7 +5,8 @@ const { projectRoot, publicDir } = require('./config/paths');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errors');
 const app = express();
-app.use(express.json());
+// 回忆帖支持内联照片，限制仍低于常见反向代理默认上限
+app.use(express.json({ limit: '4mb' }));
 app.get('/api/instance', (req, res) => {
   // 启动器核对当前项目实例
   res.json({ application: 'today-eat-what', directory: projectRoot });

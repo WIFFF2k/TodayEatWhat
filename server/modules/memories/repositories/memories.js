@@ -36,4 +36,9 @@ function deleteMemory(id) {
   db.prepare('DELETE FROM memories WHERE id = ?').run(id);
 }
 
-module.exports = { memories, createMemory, memoryOwner, deleteMemory, PAGE_SIZE };
+function countByUser(userName) {
+  // 统计玩家发布过的回忆帖数量
+  return db.prepare('SELECT COUNT(*) AS count FROM memories WHERE user_name=?').get(userName).count;
+}
+
+module.exports = { memories, createMemory, memoryOwner, deleteMemory, countByUser, PAGE_SIZE };

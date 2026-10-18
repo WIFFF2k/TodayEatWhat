@@ -63,6 +63,63 @@ size 只能为 10、30 或 50，默认 10；首屏不传 before，下一页传�
 - 前端必须使用响应里的候选及下标绘制最终结果，不能自行重新随机；候选为空返回 409
 - GET /records?offset=0 → 历史数组，每项 { id, userName, category, optionName, createdAt, pollId }，category 为分类 key，无关联投票时 pollId 为 null
 
+## 吃饭回忆
+
+- GET /memories?offset=0 → 最新回忆帖数组，每页最多 30 条
+- POST /memories → { title, content, participants, photo }，标题 1～60 字，感想最多 500 字，参与人员必须来自白名单；照片为 PNG、JPG、GIF 或 WebP 数据 URL，最大 3MB
+- DELETE /memories/:id → 仅帖子作者可以删除
+
+## 迩灵邑
+
+迩灵邑接口使用轴向六边形坐标 q、r，未传地图坐标时以当前玩家出生点为中心；地图地块在读取或圈占时按需生成。所有地图操作的 q、r 必须是安全整数，否则返回 REALM_COORDINATE_INVALID
+
+| 请求 | 参数或请求体 | 成功返回 |
+| --- | --- | --- |
+| GET /realm/overview | 可选 q、r | 世界、玩家资源、视野地块、建筑、事件、联盟、战争历史、攻防战报、在线玩家、排行榜、最近动态和赛季信息；返回 `serverTime` 作为倒计时校准基准，返回 `productionPerTick` 作为每 120 秒自动产出预估，事件与世界首领包含结束时间，首领空窗期返回下一场开始时间 `worldBossNextAt`，在线玩家包含最近活跃时间，战争历史包含当前玩家贡献积分和本盟个人名次 `ownRank`，已结算胜仗包含联盟仓库奖励 `warehouseReward`，战争胜利入仓会生成 `war-warehouse-reward` 动态，功法可升级时返回权威费用 `techniqueUpgrade`，攻防战报包含 `warPoint`，建筑配置返回 `cost` 与技能 `cost/reward`，`activities.meals`、`activities.posts`、`activities.relics` 分别来自吃饭记录、发帖记录和迩灵邑遗迹探索记录，赛季历史同时保存邑城榜与修炼榜 |
+| GET /realm/ranking | 无 | 当前世界领地榜和修炼榜，以及用于客户端倒计时校准的服务端时间 `serverTime` |
+| GET /realm/season | 无 | 当前赛季编号、起止时间、剩余秒数、服务端时间 `serverTime` 和历史排行榜快照；历史排名前三名含赛季奖励 |
+| POST /realm/gather | 无 | 主动采集粮食、木材、矿石和灵息后的玩家状态和地图信息，并返回本次 `gatherReward` |
+| POST /realm/events/resolve | `{ eventId, choiceKey? }` | 参与当前限时事件并领取一次性奖励；当前事件池包含十三种模板，分支事件必须提交有效的 `choiceKey`，协作事件达标时最后参与者会获得额外奖励 |
+| POST /realm/daily-quests/claim | `{ questKey }` | 领取当天已完成的每日悬赏奖励，每个悬赏每天只能领取一次 |
+| POST /realm/achievements/claim | `{ achievementKey }` | 领取已达成的修士功勋奖励，每个功勋永久只能领取一次 |
+| POST /realm/trades | { offerResource, offerAmount, wantResource, wantAmount } | 托管资源并发布一笔 24 小时有效的公开交易订单；过期后自动退款 |
+| POST /realm/trades/fill | { orderId } | 成交其他玩家的公开订单并原子交换资源 |
+| POST /realm/trades/cancel | { orderId } | 取消自己的未成交订单并退回托管资源；过期订单由系统自动退款 |
+| POST /realm/relics/explore | `{ q, r }` | 探索遗迹并领取按距离成长的一次性奖励 |
+| POST /realm/tiles/claim | { q, r } | 圈地后的玩家状态和地图信息 |
+| POST /realm/buildings | { q, r, building } | 建筑完成后的玩家状态和地图信息 |
+| POST /realm/buildings/demolish | { q, r } | 拆除自己的功能建筑并返还基础建造材料的 50%；升级与专精投入不返还 |
+| POST /realm/buildings/upgrade | { q, r } | 建筑升级后的玩家状态和地图信息；升至下一级需要 `25×当前等级` 木材和 `floor(12.5×当前等级)` 矿石 |
+| POST /realm/buildings/specialize | { q, r, specialization } | 为 3 级以上建筑确定一次专精并返回更新后的玩家状态和地图信息 |
+| POST /realm/buildings/activate | { q, r } | 发动建筑主动技能并返回技能消耗与奖励 |
+| POST /realm/attack | { q, r } | 攻击结果、战利品、`warPoint`、行动日志和地图信息；成功时掠取防守方各类资源的 8%，同联盟成员不能互相攻击，战争积分同时写入历史攻防战报 |
+| POST /realm/world-boss/attack | 无 | 消耗 20 矿石和 3 灵息攻击当前世界首领，返回共享血量、个人伤害与当前排名、联盟伤害榜、联盟仓库奖励和击杀奖励；击杀时额外返回 `bossRanking`（最终名次与奖励）、`bossPersonalRank`、`bossPersonalReward` |
+| POST /realm/alliances/world-boss-rewards/claim | 无 | 将当前联盟尚未入仓的世界首领奖励一次性存入联盟仓库 |
+| POST /realm/cultivate | 无 | 修炼后的境界经验和资源 |
+| POST /realm/breakthrough | 无 | 突破成功或失败后的境界状态；总览中的 breakthrough.chance 返回当前实际成功率 |
+| POST /realm/talent | { talent } | 首次灵根觉醒后的玩家状态，talent 可为 earth、metal、spirit |
+| POST /realm/technique | { technique } | 首次选择功法后的玩家状态，technique 可为 fortune、qi、war |
+| POST /realm/technique/upgrade | 无 | 按目标等级递增消耗修炼经验和灵息提升当前功法等级；第 N 级需要 `300×N` 修炼经验与 `10×N` 灵息 |
+| POST /realm/donate | { recipient, amount, resource? } | 捐赠指定资源后的玩家状态，resource 可为 grain、wood、ore、essence，缺省为 grain |
+| POST /realm/alliances | { name } | 创建联盟并成为盟主 |
+| POST /realm/alliances/join | { name } | 加入指定联盟 |
+| POST /realm/alliances/leave | 无 | 退出当前联盟；战争期间不能退出 |
+| POST /realm/alliances/transfer | { name } | 盟主将盟主职位转让给本联盟成员 |
+| POST /realm/alliances/disband | 无 | 盟主解散当前联盟 |
+| POST /realm/alliances/donate | { amount, resource? } | 将指定资源捐入联盟仓库，resource 可为 grain、wood、ore、essence，缺省为 grain |
+| POST /realm/alliances/projects/donate | { projectKey, amount, source? } | 投入粮食推进联盟公共工程，projectKey 可为 road、academy、hunt；source 可为 personal（默认，扣个人粮食）或 warehouse（扣联盟仓库粮食），总览中的 alliance.projectContributions 返回按成员和来源汇总的工程贡献 |
+| POST /realm/alliances/relations | { targetAlliance, kind } | 盟主发起结盟或停战申请，kind 可为 ally、truce |
+| POST /realm/alliances/relations/respond | { relationId, accept } | 目标盟主接受或拒绝外交申请 |
+| POST /realm/alliances/relations/end | { relationId } | 任一盟主解除已经生效的结盟或停战关系 |
+| POST /realm/alliances/war | { targetAlliance } | 盟主向目标联盟发起 24 小时战争；到期后首次访问按积分结算并发放联盟仓库奖励 |
+| POST /realm/destroy-world | 无 | 清空当前迩灵邑全部运行态数据、重置赛季编号并创建新世界 |
+
+自动产出每 120 秒结算一次；主动采集每秒最多一次；世界事件每 30 分钟从十三种模板轮换一次，并可分别加成四类基础资源或修炼经验。圈地只要求与己方地块相邻，可以沿连接领地持续扩张到远方区域；建筑必须匹配地形，攻击受到相邻限制、资源消耗、出生护盾和冷却限制；攻击夺地使用目标归属条件更新，掠夺资源与双方状态在同一事务内结算。`/realm/overview` 的 `activities.relics` 为遗迹探索次数，`actions` 为最近动态；突破还会按境界要求遗迹探索次数。联盟公共工程 key 固定为 `road`、`academy` 和 `hunt`；世界首领按周期轮换三种模板并在低血量阶段降低承伤倍率
+
+回忆帖字段为 id、userName、title、content、participants、photo、createdAt；照片没有上传时为 null。迩灵邑突破材料中的吃饭次数和发帖次数分别由 records、memories 领域仓储统计，每次突破分别校验两类次数
+
+`/realm/overview` 的 `achievements` 由服务端统一计算，当前包含 17 项功勋，包含 `key`、`name`、`description`、`progress`、`goal`、`completed`、`claimed` 和 `reward` 字段；`claimed` 会根据永久领取凭证返回实际状态
+
 ## 全局设置
 
 - GET /settings → { pollMode, pollMinutes }
@@ -95,3 +152,15 @@ choiceIds 必须是非空、不重复的正安全整数数组，且全部属于�
 
 sync 最多返回最近 30 个未截止投票，不分页；历史投票仍可通过列表和详情查看
 网页在可见且非忙碌时每 3 秒同步通知和当前页面必要数据；设置、历史、投票列表通过重新进入页面读取
+观星台建在平原上，技能为观星推演；多座观星台按等级累加提高事件参与和协作完成的实际奖励，服务端统一封顶 40%，奖励倍率由事件结算接口返回。
+御兽苑建在平原上，主动技能“灵兽巡猎”获得矿石和灵息；御兽苑按等级提高攻击成功率，所有御兽苑累计加成最高 15%。
+`/realm/overview` 返回 `worldEventBonus`，表示当前玩家由所有观星台提供的天地异动奖励加成百分比。
+普通攻城接口额外返回 `attackChance`，表示本次结算使用的成功率；该值已经包含灵根、功法、御兽苑、目标建筑等级和防御专精影响。
+视野地块中的敌方目标会附带 `attackChance` 预览值，实际攻击时服务端会重新读取状态并再次计算，预览不代表锁定结果。
+世界事件模板现为十三种，新增“灵脉迁徙”，支持追踪矿精或稳固阵眼两条资源路线。
+事件结算接口返回 `rewardMultiplier` 与放大后的 `reward`、`completionReward`，用于确认观星台对本次个人奖励和协作奖励的实际影响。
+世界事件模板现为十三种，新增“天材地宝”，支持采集凝神灵草或收取灵果两条路线。
+功勋当前包含 17 项，新增“应变百策”和“守土有责”；前者完成 5 次天地异动参与后可领取灵息与修炼经验奖励，后者按防守成功次数统计。
+成功夺地后，防守方会获得 45 秒战后护盾，和出生护盾、玄甲营主动护盾共用 `shieldUntil`，用于避免连续攻击锁死同一玩家。
+`/realm/overview` 返回 `defenseWins`，表示玩家作为防守方成功守住领地的战报次数，与“守土有责”功勋使用同一统计来源。
+`/realm/overview` 同时返回 `defenseLosses`，表示玩家作为防守方失守的战报次数，和 `defenseWins` 一起用于观察领地防守表现。

@@ -5,8 +5,11 @@
 @import url("../features/options/styles/options.css");
 @import url("../features/wheel/styles/wheel.css");
 @import url("../features/game/styles/game.css");
+@import url("../features/realm/styles/realm.css");
+@import url("../features/realm/styles/ranking.css");
 @import url("../features/polls/styles/polls.css");
 @import url("../features/settings/styles/settings.css");
+@import url("../features/memories/styles/memories.css");
 @import url("../features/wheel/styles/skins/base.css");
 @import url("../features/wheel/styles/skins/basic.css");
 @import url("../features/wheel/styles/skins/neon.css");

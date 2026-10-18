@@ -1,10 +1,11 @@
 // 提供迩灵邑突破所需的跨领域活动统计
-const db = require('../../../database');
+const records = require('../../records/repositories/records');
+const memories = require('../../memories/repositories/memories');
 
 function activity(userName) {
   // 统计玩家参与吃饭决策与发布回忆帖的次数
-  const meals = db.prepare('SELECT COUNT(*) AS count FROM spin_records WHERE user_name=?').get(userName).count;
-  const posts = db.prepare('SELECT COUNT(*) AS count FROM memories WHERE user_name=?').get(userName).count;
+  const meals = records.countByUser(userName);
+  const posts = memories.countByUser(userName);
   return { meals, posts, total: meals + posts };
 }
 

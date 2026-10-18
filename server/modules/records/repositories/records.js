@@ -7,4 +7,9 @@ function records(offset) {
   return records.map(row => ({ ...row, createdAt: timestamp(row.createdAt) }));
 }
 
-module.exports = { records };
+function countByUser(userName) {
+  // 统计玩家参与过的吃饭决策次数
+  return db.prepare('SELECT COUNT(*) AS count FROM spin_records WHERE user_name=?').get(userName).count;
+}
+
+module.exports = { records, countByUser };

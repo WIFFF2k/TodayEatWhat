@@ -130,13 +130,45 @@ module.exports = function migrate(db) {
   // 为新世界建立唯一初始种子，后续重置由迩灵邑业务接口负责
   db.prepare("INSERT OR IGNORE INTO realm_world(id,seed,epoch) VALUES(1,abs(random()) % 2147483647,1)").run();
   db.exec('UPDATE realm_world SET seed=abs(seed) % 2147483647 WHERE id=1');
+  // 为持续赛季补充历史排行榜快照
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_season_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    season_number INTEGER NOT NULL UNIQUE,
+    started_at TEXT NOT NULL,
+    ended_at TEXT NOT NULL,
+    rankings TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );`);
+  const seasonHistoryColumns = db.prepare('PRAGMA table_info(realm_season_history)').all();
+  if (!seasonHistoryColumns.some(column => column.name === 'cultivation_rankings')) db.exec("ALTER TABLE realm_season_history ADD COLUMN cultivation_rankings TEXT NOT NULL DEFAULT '[]'");
   // 为持续对抗补充攻击冷却字段
   const realmPlayerColumns = db.prepare('PRAGMA table_info(realm_players)').all();
+  if (!realmPlayerColumns.some(column => column.name === 'talent')) db.exec('ALTER TABLE realm_players ADD COLUMN talent TEXT');
+  if (!realmPlayerColumns.some(column => column.name === 'technique')) db.exec('ALTER TABLE realm_players ADD COLUMN technique TEXT');
+  if (!realmPlayerColumns.some(column => column.name === 'technique_level')) db.exec('ALTER TABLE realm_players ADD COLUMN technique_level INTEGER NOT NULL DEFAULT 0');
   if (!realmPlayerColumns.some(column => column.name === 'gather_ready_at')) db.exec('ALTER TABLE realm_players ADD COLUMN gather_ready_at INTEGER NOT NULL DEFAULT 0');
   if (!realmPlayerColumns.some(column => column.name === 'attack_ready_at')) db.exec('ALTER TABLE realm_players ADD COLUMN attack_ready_at TEXT');
-  // 为遗迹地块补充探索归属，让野外冒险有明确的一次性记录
+  db.exec('UPDATE realm_players SET gather_ready_at=0 WHERE gather_ready_at IS NULL');
+  // 为世界首领活跃场次查询补齐时间窗口索引
+  db.exec('CREATE INDEX IF NOT EXISTS idx_realm_world_bosses_window ON realm_world_bosses(starts_at, ends_at, id DESC)');
+  // 为局域网多人页面补充轻量在线心跳
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_presence (
+    user_name TEXT PRIMARY KEY REFERENCES users(name) ON DELETE CASCADE,
+    last_seen_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE INDEX IF NOT EXISTS idx_realm_presence_last_seen ON realm_presence(last_seen_at DESC);`);
   const realmTileColumns = db.prepare('PRAGMA table_info(realm_tiles)').all();
-  if (!realmTileColumns.some(column => column.name === 'explored_by')) db.exec('ALTER TABLE realm_tiles ADD COLUMN explored_by TEXT REFERENCES users(name)');
+  if (!realmTileColumns.some(column => column.name === 'specialization')) db.exec('ALTER TABLE realm_tiles ADD COLUMN specialization TEXT');
+  if (!realmTileColumns.some(column => column.name === 'skill_ready_at')) db.exec('ALTER TABLE realm_tiles ADD COLUMN skill_ready_at INTEGER NOT NULL DEFAULT 0');
+  db.exec('UPDATE realm_tiles SET skill_ready_at=0 WHERE skill_ready_at IS NULL');
+  // 为遗迹地块补充多人探索记录，让每位玩家都能各自探索一次
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_tile_explorers (
+    q INTEGER NOT NULL,
+    r INTEGER NOT NULL,
+    user_name TEXT NOT NULL REFERENCES users(name),
+    explored_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (q, r, user_name),
+    FOREIGN KEY (q, r) REFERENCES realm_tiles(q, r) ON DELETE CASCADE
+  ); CREATE INDEX IF NOT EXISTS idx_realm_tile_explorers_user ON realm_tile_explorers(user_name, explored_at DESC);`);
   db.exec(`CREATE TABLE IF NOT EXISTS realm_action_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor TEXT NOT NULL REFERENCES users(name),
@@ -145,7 +177,58 @@ module.exports = function migrate(db) {
     target_r INTEGER,
     result TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-  ); CREATE INDEX IF NOT EXISTS idx_realm_action_logs_actor ON realm_action_logs(actor, id DESC);`);
+  ); CREATE INDEX IF NOT EXISTS idx_realm_action_logs_actor ON realm_action_logs(actor, id DESC); CREATE INDEX IF NOT EXISTS idx_realm_action_logs_daily ON realm_action_logs(actor, action, created_at);`);
+  // 为玩家攻防补充可追溯战报
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_battle_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attacker TEXT NOT NULL REFERENCES users(name),
+    defender TEXT NOT NULL REFERENCES users(name),
+    target_q INTEGER NOT NULL,
+    target_r INTEGER NOT NULL,
+    success INTEGER NOT NULL CHECK (success IN (0,1)),
+    plunder TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE INDEX IF NOT EXISTS idx_realm_battle_reports_players ON realm_battle_reports(attacker, defender, id DESC); CREATE INDEX IF NOT EXISTS idx_realm_battle_reports_defender ON realm_battle_reports(defender, id DESC); CREATE INDEX IF NOT EXISTS idx_realm_battle_reports_defense_result ON realm_battle_reports(defender, success, id DESC);`);
+  const battleReportColumns = db.prepare('PRAGMA table_info(realm_battle_reports)').all();
+  if (!battleReportColumns.some(column => column.name === 'war_point')) {
+    db.exec('ALTER TABLE realm_battle_reports ADD COLUMN war_point INTEGER NOT NULL DEFAULT 0');
+  }
+  // 为每日悬赏补充按天领取凭证
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_daily_quest_claims (
+    user_name TEXT NOT NULL REFERENCES users(name),
+    quest_date TEXT NOT NULL,
+    quest_key TEXT NOT NULL,
+    claimed_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (user_name, quest_date, quest_key)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_daily_quest_claims_user ON realm_daily_quest_claims(user_name, quest_date DESC);`);
+  // 为修士功勋补充永久一次性领取凭证
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_achievement_claims (
+    user_name TEXT NOT NULL REFERENCES users(name),
+    achievement_key TEXT NOT NULL,
+    claimed_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (user_name, achievement_key)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_achievement_claims_user ON realm_achievement_claims(user_name);`);
+  // 为玩家间资源交易补充托管订单
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_trade_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    seller TEXT NOT NULL REFERENCES users(name),
+    offer_resource TEXT NOT NULL CHECK (offer_resource IN ('grain','wood','ore','essence')),
+    offer_amount INTEGER NOT NULL CHECK (offer_amount > 0),
+    want_resource TEXT NOT NULL CHECK (want_resource IN ('grain','wood','ore','essence')),
+    want_amount INTEGER NOT NULL CHECK (want_amount > 0),
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','filled','cancelled')),
+    filled_by TEXT REFERENCES users(name),
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    filled_at TEXT,
+    CHECK (offer_resource <> want_resource)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_trade_orders_open ON realm_trade_orders(status, created_at DESC);`);
+  // 为交易托管订单补充 24 小时有效期，避免资源无限期锁定
+  const tradeColumns = db.prepare('PRAGMA table_info(realm_trade_orders)').all();
+  if (!tradeColumns.some(column => column.name === 'expires_at')) {
+    db.exec("ALTER TABLE realm_trade_orders ADD COLUMN expires_at TEXT");
+    db.exec("UPDATE realm_trade_orders SET expires_at=datetime(created_at,'+24 hours') WHERE expires_at IS NULL");
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_realm_trade_orders_expiry ON realm_trade_orders(status, expires_at)');
   // 为限时事件补充每位玩家的一次性参与记录
   db.exec(`CREATE TABLE IF NOT EXISTS realm_event_participants (
     event_id INTEGER NOT NULL REFERENCES realm_events(id) ON DELETE CASCADE,
@@ -178,4 +261,94 @@ module.exports = function migrate(db) {
     progress INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (alliance_id, project_key)
   );`);
+  // 为联盟公共工程补充成员贡献明细
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliance_project_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    user_name TEXT NOT NULL REFERENCES users(name),
+    project_key TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('personal','warehouse')),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  ); CREATE INDEX IF NOT EXISTS idx_realm_alliance_project_contributions_rank ON realm_alliance_project_contributions(alliance_id, project_key, amount DESC);`);
+  // 为联盟外交补充盟约与停战申请
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliance_relations (
+    alliance_a_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    alliance_b_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('ally', 'truce')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'declined', 'ended')),
+    proposer_alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    responded_at TEXT,
+    PRIMARY KEY (alliance_a_id, alliance_b_id),
+    CHECK (alliance_a_id < alliance_b_id),
+    CHECK (proposer_alliance_id = alliance_a_id OR proposer_alliance_id = alliance_b_id)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_alliance_relations_target ON realm_alliance_relations(alliance_b_id, status);`);
+  // 为联盟外交补充限时战争与积分记录
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliance_wars (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    attacker_alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    defender_alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    attacker_score INTEGER NOT NULL DEFAULT 0,
+    defender_score INTEGER NOT NULL DEFAULT 0,
+    starts_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    ends_at TEXT NOT NULL,
+    CHECK (attacker_alliance_id <> defender_alliance_id)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_alliance_wars_active ON realm_alliance_wars(ends_at);`);
+  // 为已存在数据库按字段缺失情况补充战争结算字段
+  const warColumns = db.prepare('PRAGMA table_info(realm_alliance_wars)').all();
+  if (!warColumns.some(column => column.name === 'settled_at')) db.exec('ALTER TABLE realm_alliance_wars ADD COLUMN settled_at TEXT');
+  if (!warColumns.some(column => column.name === 'winner_alliance_id')) db.exec('ALTER TABLE realm_alliance_wars ADD COLUMN winner_alliance_id INTEGER');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_realm_alliance_wars_pair ON realm_alliance_wars(attacker_alliance_id, defender_alliance_id, ends_at); CREATE INDEX IF NOT EXISTS idx_realm_alliance_wars_reverse_pair ON realm_alliance_wars(defender_alliance_id, attacker_alliance_id, ends_at)');
+  // 为战争个人贡献补充参战记录
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_alliance_war_participants (
+    war_id INTEGER NOT NULL REFERENCES realm_alliance_wars(id) ON DELETE CASCADE,
+    user_name TEXT NOT NULL REFERENCES users(name),
+    alliance_id INTEGER NOT NULL REFERENCES realm_alliances(id) ON DELETE CASCADE,
+    points INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (war_id, user_name)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_alliance_war_participants_rank ON realm_alliance_war_participants(war_id, alliance_id, points DESC); CREATE INDEX IF NOT EXISTS idx_realm_alliance_war_participants_rank_user ON realm_alliance_war_participants(war_id, alliance_id, points DESC, user_name);`);
+  // 为限时世界首领补充共享血量与玩家伤害记录
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_world_bosses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle INTEGER NOT NULL UNIQUE,
+    kind TEXT NOT NULL DEFAULT 'beast',
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    max_hp INTEGER NOT NULL,
+    current_hp INTEGER NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    q INTEGER NOT NULL,
+    r INTEGER NOT NULL,
+    defeated_at TEXT
+  ); CREATE INDEX IF NOT EXISTS idx_realm_world_bosses_active ON realm_world_bosses(ends_at, defeated_at);
+  CREATE TABLE IF NOT EXISTS realm_world_boss_participants (
+    boss_id INTEGER NOT NULL REFERENCES realm_world_bosses(id) ON DELETE CASCADE,
+    user_name TEXT NOT NULL REFERENCES users(name),
+    damage INTEGER NOT NULL DEFAULT 0,
+    attacks INTEGER NOT NULL DEFAULT 0,
+    last_attack_at INTEGER NOT NULL DEFAULT 0,
+    rewarded INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (boss_id, user_name)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_world_boss_participants_rank ON realm_world_boss_participants(boss_id, damage DESC); CREATE INDEX IF NOT EXISTS idx_realm_world_boss_participants_rank_user ON realm_world_boss_participants(boss_id, damage DESC, user_name);`);
+  const worldBossParticipantColumns = db.prepare('PRAGMA table_info(realm_world_boss_participants)').all();
+  if (!worldBossParticipantColumns.some(column => column.name === 'alliance_name')) db.exec('ALTER TABLE realm_world_boss_participants ADD COLUMN alliance_name TEXT');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_realm_world_boss_participants_alliance ON realm_world_boss_participants(boss_id, alliance_name, damage DESC)');
+  // 为世界首领联盟奖励补充可追溯的仓库发放记录
+  db.exec(`CREATE TABLE IF NOT EXISTS realm_world_boss_alliance_rewards (
+    boss_id INTEGER NOT NULL REFERENCES realm_world_bosses(id) ON DELETE CASCADE,
+    alliance_name TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    grain INTEGER NOT NULL DEFAULT 0,
+    wood INTEGER NOT NULL DEFAULT 0,
+    ore INTEGER NOT NULL DEFAULT 0,
+    essence INTEGER NOT NULL DEFAULT 0,
+    delivered INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (boss_id, alliance_name)
+  ); CREATE INDEX IF NOT EXISTS idx_realm_world_boss_alliance_rewards_pending ON realm_world_boss_alliance_rewards(alliance_name, delivered, boss_id);`);
+  const worldBossColumns = db.prepare('PRAGMA table_info(realm_world_bosses)').all();
+  if (!worldBossColumns.some(column => column.name === 'kind')) db.exec("ALTER TABLE realm_world_bosses ADD COLUMN kind TEXT NOT NULL DEFAULT 'beast'");
+  // 为迩灵邑突破材料统计补充用户索引，避免总览查询随历史记录增长退化为全表扫描
+  db.exec('CREATE INDEX IF NOT EXISTS idx_spin_records_user ON spin_records(user_name); CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_name)');
 };
